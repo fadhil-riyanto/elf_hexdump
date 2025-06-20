@@ -3,7 +3,6 @@
  * Copyright (C) Fadhil Riyanto <me@fadev.org>
  */
 
-
 #include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -11,6 +10,94 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "hexdump.h"
+
+#ifdef __clang__
+  #ifndef __hot
+    #define __hot __attribute__((hot))
+  #endif
+  #ifndef __cold
+    #define __cold __attribute__((cold))
+  #endif
+#endif /* __clang__ */
+
+#define SIZE(x, y) sizeof(x) / sizeof(y) 
+
+enum ELF_arch_type {
+        ELF32,
+        ELF64,
+        NOT_ELF,
+        UNDEFINED_ARCH /* need triage */
+};
+
+static char elf_magic[5] = {
+        0x7F, 0x45, 0x4C, 0x46, 0x0
+};
+
+/* 
+ * this is ELF related
+ * ported from: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234 
+ */
+
+/* 32-bit ELF base types. */
+typedef u_int32_t	Elf32_Addr;
+typedef u_int16_t	Elf32_Half;
+typedef u_int32_t	Elf32_Off;
+typedef int32_t 	Elf32_Sword;
+typedef u_int32_t	Elf32_Word;
+typedef u_int16_t	Elf32_Versym;
+
+/* 64-bit ELF base types. */
+typedef u_int64_t	Elf64_Addr;
+typedef u_int16_t	Elf64_Half;
+typedef int16_t 	Elf64_SHalf;
+typedef u_int64_t	Elf64_Off;
+typedef int32_t 	Elf64_Sword;
+typedef u_int32_t	Elf64_Word;
+typedef u_int64_t	Elf64_Xword;
+typedef int64_t 	Elf64_Sxword;
+typedef u_int16_t	Elf64_Versym;
+
+#define EI_NIDENT               16
+
+typedef struct elf32_hdr {
+  unsigned char	e_ident[EI_NIDENT];
+  Elf32_Half	e_type;
+  Elf32_Half	e_machine;
+  Elf32_Word	e_version;
+  Elf32_Addr	e_entry;  /* Entry point */
+  Elf32_Off	e_phoff;
+  Elf32_Off	e_shoff;
+  Elf32_Word	e_flags;
+  Elf32_Half	e_ehsize;
+  Elf32_Half	e_phentsize;
+  Elf32_Half	e_phnum;
+  Elf32_Half	e_shentsize;
+  Elf32_Half	e_shnum;
+  Elf32_Half	e_shstrndx;
+} Elf32_Ehdr;
+
+
+typedef struct elf64_hdr {
+  unsigned char	e_ident[EI_NIDENT];	/* ELF "magic number" */
+  Elf64_Half e_type;
+  Elf64_Half e_machine;
+  Elf64_Word e_version;
+  Elf64_Addr e_entry;		/* Entry point virtual address */
+  Elf64_Off e_phoff;		/* Program header table file offset */
+  Elf64_Off e_shoff;		/* Section header table file offset */
+  Elf64_Word e_flags;
+  Elf64_Half e_ehsize;
+  Elf64_Half e_phentsize;
+  Elf64_Half e_phnum;
+  Elf64_Half e_shentsize;
+  Elf64_Half e_shnum;
+  Elf64_Half e_shstrndx;
+} Elf64_Ehdr;
+
+
 
 static struct option long_options[] = {
         {"file", 1, 0, 'f'}, 
@@ -37,6 +124,29 @@ static int elf64_open_file(const char *filename) {
         return fd;
 }
 
+__cold static enum ELF_arch_type read_elf_magic(int fd) {
+        u_int8_t buf[16];
+        size_t bufsize = SIZE(buf, u_int8_t);
+        memset(buf, 0, bufsize);
+
+        read(fd, buf, bufsize);
+        VT_HEXDUMP(buf, bufsize);
+
+        if (buf[0] == elf_magic[0] && buf[1] == elf_magic[1] && 
+                buf[2] == elf_magic[2] && buf[3] == elf_magic[3])
+        {
+                if (buf[4] == 1) {
+                        return ELF32;
+                } else if (buf[4] == 2) {
+                        return ELF64;
+                } else {
+                        return UNDEFINED_ARCH;
+                }
+        } else {
+                return NOT_ELF;
+        }
+}
+
 static int parse_opt(int argc, char *argv[], struct config *config) {
         int retval = 0;
         char opt = 0;
@@ -45,7 +155,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
         u_int64_t conv_optarg = 0;
 
         while (1) {
-                opt = getopt_long(argc, argv, "f:", long_options, &index);
+                opt = getopt_long(argc, argv, "f:e:", long_options, &index);
 
                 if (opt == -1) {
                         break;
@@ -88,10 +198,22 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
         return retval;
 }
 
+__cold static void __debug_config(struct config *config) {
+        printf("config->filename: %s\nconfig->elf: %d\n\n",
+                config->filename, config->elf
+        );
+}
+
 int main(int argc, char **argv) {
         struct config config;
         int ret = parse_opt(argc, argv, &config);
 
-        // ret = elf64_open_file("./ap");
-        printf("%d", ret);
+        ret = elf64_open_file(config.filename);
+        if (ret > 0) {
+                int elf_arch_type = read_elf_magic(ret);
+                asm volatile("nop");
+                // printf(const char *restrict format, ...)
+        }
+
+        // __debug_config(&config);
 }
