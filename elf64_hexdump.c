@@ -245,29 +245,58 @@ __cold static void __debug_config(struct config *config) {
 }
 
 __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr) {
-        printf("Type:                             %u\n", ehdr->e_type);
-        printf("Machine:                          %u\n", ehdr->e_machine);
-        printf("Version:                          0x%x\n", ehdr->e_version);
-        printf("Entry point address:              0x%016" PRIx64 "\n",
+        printf("ELF64 class\n");
+        printf("\tType:                             %u\n", ehdr->e_type);
+        printf("\tMachine:                          %u\n", ehdr->e_machine);
+        printf("\tVersion:                          0x%x\n", ehdr->e_version);
+        printf("\tEntry point address:              0x%016" PRIx64 "\n",
                ehdr->e_entry);
-        printf("Start of program headers:         %" PRIu64
+        printf("\tStart of program headers:         %" PRIu64
                " (bytes into file)\n",
                ehdr->e_phoff);
-        printf("Start of section headers:         %" PRIu64
+        printf("\tStart of section headers:         %" PRIu64
                " (bytes into file)\n",
                ehdr->e_shoff);
-        printf("Flags:                            0x%x\n", ehdr->e_flags);
-        printf("Size of this header:              %" PRIu16 " (bytes)\n",
+        printf("\tFlags:                            0x%x\n", ehdr->e_flags);
+        printf("\tSize of this header:              %" PRIu16 " (bytes)\n",
                ehdr->e_ehsize);
-        printf("Size of program headers:          %" PRIu16 " (bytes)\n",
+        printf("\tSize of program headers:          %" PRIu16 " (bytes)\n",
                ehdr->e_phentsize);
-        printf("Number of program headers:        %" PRIu16 "\n",
+        printf("\tNumber of program headers:        %" PRIu16 "\n",
                ehdr->e_phnum);
-        printf("Size of section headers:          %" PRIu16 " (bytes)\n",
+        printf("\tSize of section headers:          %" PRIu16 " (bytes)\n",
                ehdr->e_shentsize);
-        printf("Number of section headers:        %" PRIu16 "\n",
+        printf("\tNumber of section headers:        %" PRIu16 "\n",
                ehdr->e_shnum);
-        printf("Section header string table index:%" PRIu16 "\n",
+        printf("\tSection header string table index:%" PRIu16 "\n",
+               ehdr->e_shstrndx);
+}
+
+__cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr) {
+        printf("ELF32 class\n");
+        printf("\tType:                             %u\n", ehdr->e_type);
+        printf("\tMachine:                          %u\n", ehdr->e_machine);
+        printf("\tVersion:                          0x%x\n", ehdr->e_version);
+        printf("\tEntry point address:              0x%016" PRIx32 "\n",
+               ehdr->e_entry);
+        printf("\tStart of program headers:         %" PRIu32
+               " (bytes into file)\n",
+               ehdr->e_phoff);
+        printf("\tStart of section headers:         %" PRIu32
+               " (bytes into file)\n",
+               ehdr->e_shoff);
+        printf("\tFlags:                            0x%x\n", ehdr->e_flags);
+        printf("\tSize of this header:              %" PRIu16 " (bytes)\n",
+               ehdr->e_ehsize);
+        printf("\tSize of program headers:          %" PRIu16 " (bytes)\n",
+               ehdr->e_phentsize);
+        printf("\tNumber of program headers:        %" PRIu16 "\n",
+               ehdr->e_phnum);
+        printf("\tSize of section headers:          %" PRIu16 " (bytes)\n",
+               ehdr->e_shentsize);
+        printf("\tNumber of section headers:        %" PRIu16 "\n",
+               ehdr->e_shnum);
+        printf("\tSection header string table index:%" PRIu16 "\n",
                ehdr->e_shstrndx);
 }
 
@@ -276,7 +305,7 @@ int main(int argc, char **argv) {
         memset(&config, 0, sizeof(config));
 
         int ret = parse_opt(argc, argv, &config);
-        __debug_config(&config);
+        // __debug_config(&config);
 
         ret = __open_file(config.filename);
         if (ret < 0) {
@@ -299,8 +328,9 @@ int main(int argc, char **argv) {
                 if (elf_arch_type == ELF32) {
                         Elf32_Ehdr *ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
                         interpret_elf32_hdr(ret, ehdr);
+                        __print_elf32_hdr(ehdr);
+                        free(ehdr);
                 }
-
         }
         // __debug_config(&config);
 }
