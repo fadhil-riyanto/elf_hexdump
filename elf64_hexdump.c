@@ -63,6 +63,7 @@ typedef u_int64_t Elf64_Xword;
 typedef int64_t Elf64_Sxword;
 typedef u_int16_t Elf64_Versym;
 
+/* ELF HEADER */
 typedef struct elf32_hdr {
         unsigned char e_ident[EI_NIDENT];
         Elf32_Half e_type;
@@ -97,19 +98,69 @@ typedef struct elf64_hdr {
         Elf64_Half e_shstrndx;
 } Elf64_Ehdr;
 
+/* ELF section header */
+typedef struct elf32_shdr {
+        Elf32_Word sh_name;
+        Elf32_Word sh_type;
+        Elf32_Word sh_flags;
+        Elf32_Addr sh_addr;
+        Elf32_Off sh_offset;
+        Elf32_Word sh_size;
+        Elf32_Word sh_link;
+        Elf32_Word sh_info;
+        Elf32_Word sh_addralign;
+        Elf32_Word sh_entsize;
+} Elf32_Shdr;
+
+typedef struct elf64_shdr {
+        Elf64_Word sh_name;       /* Section name, index in string tbl */
+        Elf64_Word sh_type;       /* Type of section */
+        Elf64_Xword sh_flags;     /* Miscellaneous section attributes */
+        Elf64_Addr sh_addr;       /* Section virtual addr at execution */
+        Elf64_Off sh_offset;      /* Section file offset */
+        Elf64_Xword sh_size;      /* Size of section in bytes */
+        Elf64_Word sh_link;       /* Index of another section */
+        Elf64_Word sh_info;       /* Additional section information */
+        Elf64_Xword sh_addralign; /* Section alignment */
+        Elf64_Xword sh_entsize;   /* Entry size if section holds table */
+} Elf64_Shdr;
+
+/* program table header */
+typedef struct elf32_phdr{
+  Elf32_Word	p_type;
+  Elf32_Off	p_offset;
+  Elf32_Addr	p_vaddr;
+  Elf32_Addr	p_paddr;
+  Elf32_Word	p_filesz;
+  Elf32_Word	p_memsz;
+  Elf32_Word	p_flags;
+  Elf32_Word	p_align;
+} Elf32_Phdr;
+
+typedef struct elf64_phdr {
+  Elf64_Word p_type;
+  Elf64_Word p_flags;
+  Elf64_Off p_offset;		/* Segment file offset */
+  Elf64_Addr p_vaddr;		/* Segment virtual address */
+  Elf64_Addr p_paddr;		/* Segment physical address */
+  Elf64_Xword p_filesz;		/* Segment size in file */
+  Elf64_Xword p_memsz;		/* Segment size in memory */
+  Elf64_Xword p_align;		/* Segment alignment, file & memory */
+} Elf64_Phdr;
+
 struct file_off_control {
         u_int64_t offset;
         int n;
 };
 
 static struct option long_options[] = { { "file", 1, 0, 'f' },
-                                        { "elf", 1, 0, 'e' },
+                                        { "header", 1, 0, 'h' },
                                         { "hexdump", 0, 0, 'x' },
                                         NULL };
 
 struct config {
         char *filename;
-        u_int8_t elf;
+        u_int8_t show_header;
         u_int8_t hexdump;
         /*
          * add more in future
@@ -187,7 +238,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
         u_int64_t conv_optarg = 0;
 
         while (1) {
-                opt = getopt_long(argc, argv, "f:e:x::", long_options, &index);
+                opt = getopt_long(argc, argv, "f:h:x::", long_options, &index);
 
                 if (opt == -1) {
                         break;
@@ -201,7 +252,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                         config->filename = optarg;
                         break;
 
-                case 'e':
+                case 'h':
                         conv_optarg = strtoul(optarg, NULL, 0);
 
                         if (conv_optarg == EINVAL) {
@@ -223,9 +274,9 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                                         "ELF option \"%ld\" option is illegal, "
                                         "use 1 or 0, defaulting 0",
                                         conv_optarg);
-                                config->elf = 0;
+                                config->show_header = 0;
                         } else {
-                                config->elf = conv_optarg;
+                                config->show_header = conv_optarg;
                         }
                         break;
 
@@ -286,9 +337,9 @@ __hot static int _start_hexdump(int fd) {
 
 __cold static void __debug_config(struct config *config) {
         printf("config->filename: %s\n"
-               "config->elf: %d\n"
+               "config->show_header: %d\n"
                "config->hexdump: %d",
-               config->filename, config->elf, config->hexdump);
+               config->filename, config->show_header, config->hexdump);
 }
 
 __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr) {
@@ -361,7 +412,7 @@ int main(int argc, char **argv) {
                 // asm volatile("nop");
                 // printf(const char *restrict format, ...)
         }
-        if (config.elf) {
+        if (config.show_header) {
 
                 int elf_arch_type = read_elf_magic(ret);
 
@@ -386,7 +437,8 @@ int main(int argc, char **argv) {
                 }
 
                 if (elf_arch_type == UNDEFINED_ARCH) {
-                        fprintf(stderr, "its confirmed as ELF, but arch is not x86 (legacy) or x86-64");
+                        fprintf(stderr, "its confirmed as ELF, but arch is not "
+                                        "x86 (legacy) or x86-64");
                 }
         }
 
