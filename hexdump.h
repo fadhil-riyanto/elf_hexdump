@@ -35,19 +35,7 @@
         printf("file\t\t: %s:%d\n", __FILE__, __LINE__);                        \
         printf("func\t\t: %s\n", __FUNCTION__);                                 \
         printf("addr\t\t: 0x%016lx\n", t_realptr);                              \
-        printf("dump_size\t: %ld\n\n", t_ptr_size);
-
-#ifndef HEXDUMP
-#define HEXDUMP(PTR, SIZE)                                                      \
-        size_t ptr_size = SIZE;                                                 \
-        unsigned char *realptr = (unsigned char*)PTR;                           \
-        unsigned int initial_counter = 0;                                       \
-                                                                                \
-        int n_loop = (ptr_size / 16) + 1;                                       \
-        if (ptr_size % 16 == 0) {                                               \
-                n_loop = n_loop - 1;                                            \
-        }                                                                       \
-                                                                                \
+        printf("dump_size\t: %ld\n\n", t_ptr_size);                             \
         for (int x = 0; x < 75; x++) {                                          \
                 if (x >= 40) {                                                  \
                         printf("16 BYTES WIDE\n");                              \
@@ -64,7 +52,19 @@
                         printf(" ");                                            \
                 }                                                               \
         }                                                                       \
-        printf("\n");                                                           \
+        printf("\n");                                                           
+
+#ifndef HEXDUMP
+#define HEXDUMP(PTR, SIZE)                                                      \
+        size_t ptr_size = SIZE;                                                 \
+        unsigned char *realptr = (unsigned char*)PTR;                           \
+        unsigned int initial_counter = 0;                                       \
+                                                                                \
+        int n_loop = (ptr_size / 16) + 1;                                       \
+        if (ptr_size % 16 == 0) {                                               \
+                n_loop = n_loop - 1;                                            \
+        }                                                                       \
+                                                                                \
                                                                                 \
         for (int i = 0; i < n_loop; i++) {                                      \
                 printf("|0x%016lx|", (uintptr_t)(realptr));                     \

@@ -26,6 +26,8 @@
 #endif /* __clang__ */
 
 #define SIZE(x, y) sizeof(x) / sizeof(y)
+#define EI_NIDENT       16
+#define FILE_BUFSIZE    4096  /* BYTES */
 
 enum ELF_arch_type {
         ELF32,
@@ -61,41 +63,45 @@ typedef u_int64_t Elf64_Xword;
 typedef int64_t Elf64_Sxword;
 typedef u_int16_t Elf64_Versym;
 
-#define EI_NIDENT 16
 
 typedef struct elf32_hdr {
-        unsigned char e_ident[EI_NIDENT];
-        Elf32_Half e_type;
-        Elf32_Half e_machine;
-        Elf32_Word e_version;
-        Elf32_Addr e_entry; /* Entry point */
-        Elf32_Off e_phoff;
-        Elf32_Off e_shoff;
-        Elf32_Word e_flags;
-        Elf32_Half e_ehsize;
-        Elf32_Half e_phentsize;
-        Elf32_Half e_phnum;
-        Elf32_Half e_shentsize;
-        Elf32_Half e_shnum;
-        Elf32_Half e_shstrndx;
+        unsigned char   e_ident[EI_NIDENT];
+        Elf32_Half      e_type;
+        Elf32_Half      e_machine;
+        Elf32_Word      e_version;
+        Elf32_Addr      e_entry; /* Entry point */
+        Elf32_Off       e_phoff;
+        Elf32_Off       e_shoff;
+        Elf32_Word      e_flags;
+        Elf32_Half      e_ehsize;
+        Elf32_Half      e_phentsize;
+        Elf32_Half      e_phnum;
+        Elf32_Half      e_shentsize;
+        Elf32_Half      e_shnum;
+        Elf32_Half      e_shstrndx;
 } Elf32_Ehdr;
 
 typedef struct elf64_hdr {
-        unsigned char e_ident[EI_NIDENT]; /* ELF "magic number" */
-        Elf64_Half e_type;
-        Elf64_Half e_machine;
-        Elf64_Word e_version;
-        Elf64_Addr e_entry; /* Entry point virtual address */
-        Elf64_Off e_phoff;  /* Program header table file offset */
-        Elf64_Off e_shoff;  /* Section header table file offset */
-        Elf64_Word e_flags;
-        Elf64_Half e_ehsize;
-        Elf64_Half e_phentsize;
-        Elf64_Half e_phnum;
-        Elf64_Half e_shentsize;
-        Elf64_Half e_shnum;
-        Elf64_Half e_shstrndx;
+        unsigned char   e_ident[EI_NIDENT]; /* ELF "magic number" */
+        Elf64_Half      e_type;
+        Elf64_Half      e_machine;
+        Elf64_Word      e_version;
+        Elf64_Addr      e_entry; /* Entry point virtual address */
+        Elf64_Off       e_phoff;  /* Program header table file offset */
+        Elf64_Off       e_shoff;  /* Section header table file offset */
+        Elf64_Word      e_flags;
+        Elf64_Half      e_ehsize;
+        Elf64_Half      e_phentsize;
+        Elf64_Half      e_phnum;
+        Elf64_Half      e_shentsize;
+        Elf64_Half      e_shnum;
+        Elf64_Half      e_shstrndx;
 } Elf64_Ehdr;
+
+struct file_off_control {
+        u_int64_t       offset;
+        int             n;
+};
 
 static struct option long_options[] = { { "file", 1, 0, 'f' },
                                         { "elf", 1, 0, 'e' },
@@ -234,6 +240,52 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
 }
 
 __hot static int __get_file_n(int fd) {
+        struct stat statbuf;
+        memset(&statbuf, 0, sizeof(struct stat));
+
+        int ret = fstat(fd, &statbuf);
+        if (ret == 0) {
+                // asm volatile("nop");
+
+                return statbuf.st_size;
+        } else {
+                perror("fstat()");
+                return -1;
+        }
+
+}
+
+__hot static int _start_hexdump(int fd) {
+        struct file_off_control file_off_control = {
+                .offset = FILE_BUFSIZE,
+                .n = 0
+        };
+        // memset(&file_off_control, 0, sizeof(struct file_off_control));
+
+        int filesize = __get_file_n(fd);
+
+        char *buf = (char *)malloc(sizeof(char) * FILE_BUFSIZE);
+
+        VT_TITLE(buf, filesize);
+        for (int i = 0; i < (filesize / FILE_BUFSIZE); i++) {
+                lseek(fd, SEEK_SET, (file_off_control.offset * file_off_control.n));
+
+                read(fd, buf, FILE_BUFSIZE);
+                HEXDUMP(buf, FILE_BUFSIZE);
+
+                file_off_control.n = file_off_control.n + 1;
+        }
+        
+        int last_off = file_off_control.offset * file_off_control.n;
+        int n = filesize - last_off;
+
+        lseek(fd, SEEK_SET, last_off);
+        memset(buf, 0, n);
+        read(fd, buf, n);
+        HEXDUMP(buf, n);
+
+        free(buf);
+
 
 }
 
@@ -331,6 +383,10 @@ int main(int argc, char **argv) {
                         __print_elf32_hdr(ehdr);
                         free(ehdr);
                 }
+        }
+
+        if (config.hexdump) {
+                _start_hexdump(ret);
         }
         // __debug_config(&config);
 }
