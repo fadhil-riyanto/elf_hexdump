@@ -28,17 +28,20 @@
         
 #endif /* VT_HEXDUMP_COLOR */
 
-
-#ifndef VT_HEXDUMP
-#define VT_HEXDUMP(PTR, SIZE)                                                   \
-        size_t ptr_size = SIZE;                                                 \
-        unsigned char *realptr = (unsigned char*)PTR;                           \
-        unsigned int initial_counter = 0;                                       \
+#define VT_TITLE(PTR, SIZE)                                                     \
+        size_t t_ptr_size = SIZE;                                                 \
+        unsigned char *t_realptr = (unsigned char*)PTR;                           \
         printf("================= VT_HEXDUMP =================\n");             \
         printf("file\t\t: %s:%d\n", __FILE__, __LINE__);                        \
         printf("func\t\t: %s\n", __FUNCTION__);                                 \
-        printf("addr\t\t: 0x%016lx\n", realptr);                                \
-        printf("dump_size\t: %ld\n\n", ptr_size);                               \
+        printf("addr\t\t: 0x%016lx\n", t_realptr);                                \
+        printf("dump_size\t: %ld\n\n", t_ptr_size);
+
+#ifndef HEXDUMP
+#define HEXDUMP(PTR, SIZE)                                                      \
+        size_t ptr_size = SIZE;                                                 \
+        unsigned char *realptr = (unsigned char*)PTR;                           \
+        unsigned int initial_counter = 0;                                       \
                                                                                 \
         int n_loop = (ptr_size / 16) + 1;                                       \
         if (ptr_size % 16 == 0) {                                               \
@@ -97,4 +100,10 @@
                 printf("\n");                                                   \
                 realptr = realptr + 16;                                         \
         }
-#endif                                                               
+#endif                                     
+
+#ifndef VT_HEXDUMP
+#define VT_HEXDUMP(PTR, SIZE)                                                   \
+        VT_TITLE(PTR, SIZE);                                                             \
+        HEXDUMP(PTR, SIZE);
+#endif
