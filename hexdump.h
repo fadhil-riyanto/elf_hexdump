@@ -54,8 +54,3 @@
                 realptr = realptr + 16;                                 \
         }
 #endif                                                               
-
-int main() {
-        static const char *vt_data_test = "abcefghijklmnopqrstuvwzyz1234567890asdfgqrty1";
-        VT_HEXDUMP(vt_data_test, strlen(vt_data_test));
-}
