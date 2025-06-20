@@ -14,6 +14,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #ifdef __clang__
 #ifndef __hot
@@ -97,18 +98,20 @@ typedef struct elf64_hdr {
 } Elf64_Ehdr;
 
 static struct option long_options[] = { { "file", 1, 0, 'f' },
-                                        { "elfh", 1, 0, 'e' },
+                                        { "elf", 1, 0, 'e' },
+                                        { "hexdump", 0, 0, 'x' },
                                         NULL };
 
 struct config {
         char *filename;
         u_int8_t elf;
+        u_int8_t hexdump;
         /*
          * add more in future
          */
 };
 
-static int elf64_open_file(const char *filename) {
+static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
 
         if (fd < 0) {
@@ -152,7 +155,22 @@ __cold static void interpret_elf64_hdr(int fd, Elf64_Ehdr *preallocated_hdr) {
         }
 
         memcpy(preallocated_hdr, buf, sizeof(Elf64_Ehdr));
-        asm volatile("nop");
+
+        free(buf);
+}
+
+__cold static void interpret_elf32_hdr(int fd, Elf32_Ehdr *preallocated_hdr) {
+        u_int8_t *buf = (u_int8_t *)malloc(sizeof(Elf32_Ehdr));
+
+        lseek(fd, 0, SEEK_SET);
+        int ret = read(fd, buf, sizeof(Elf32_Ehdr));
+        if (ret < 0) {
+                perror("read()");
+                return;
+        }
+
+        memcpy(preallocated_hdr, buf, sizeof(Elf32_Ehdr));
+
         free(buf);
 }
 
@@ -164,7 +182,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
         u_int64_t conv_optarg = 0;
 
         while (1) {
-                opt = getopt_long(argc, argv, "f:e:", long_options, &index);
+                opt = getopt_long(argc, argv, "f:e:x::", long_options, &index);
 
                 if (opt == -1) {
                         break;
@@ -205,18 +223,28 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                                 config->elf = conv_optarg;
                         }
                         break;
+
+                case 'x':
+                        config->hexdump = 1;
+                        break;
                 }
         }
 
         return retval;
 }
 
-__cold static void __debug_config(struct config *config) {
-        printf("config->filename: %s\nconfig->elf: %d\n\n", config->filename,
-               config->elf);
+__hot static int __get_file_n(int fd) {
+
 }
 
-__cold static void __debug_elf64_hdr(Elf64_Ehdr *ehdr) {
+__cold static void __debug_config(struct config *config) {
+        printf("config->filename: %s\n"
+               "config->elf: %d\n"
+               "config->hexdump: %d",
+               config->filename, config->elf, config->hexdump);
+}
+
+__cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr) {
         printf("Type:                             %u\n", ehdr->e_type);
         printf("Machine:                          %u\n", ehdr->e_machine);
         printf("Version:                          0x%x\n", ehdr->e_version);
@@ -245,20 +273,34 @@ __cold static void __debug_elf64_hdr(Elf64_Ehdr *ehdr) {
 
 int main(int argc, char **argv) {
         struct config config;
+        memset(&config, 0, sizeof(config));
+
         int ret = parse_opt(argc, argv, &config);
+        __debug_config(&config);
 
-        ret = elf64_open_file(config.filename);
-        if (ret > 0) {
-                Elf64_Ehdr *ehdr = (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
-
-                int elf_arch_type = read_elf_magic(ret);
-                interpret_elf64_hdr(ret, ehdr);
-
-                __debug_elf64_hdr(ehdr);
+        ret = __open_file(config.filename);
+        if (ret < 0) {
+                return -1;
                 // VT_HEXDUMP(ehdr, sizeof(Elf64_Ehdr));
                 // asm volatile("nop");
                 // printf(const char *restrict format, ...)
         }
+        if (config.elf) {
+                
+                int elf_arch_type = read_elf_magic(ret);
+                
+                if (elf_arch_type == ELF64) {
+                        Elf64_Ehdr *ehdr = (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
+                        interpret_elf64_hdr(ret, ehdr);
+                        __print_elf64_hdr(ehdr);
+                        free(ehdr);
+                }
 
+                if (elf_arch_type == ELF32) {
+                        Elf32_Ehdr *ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
+                        interpret_elf32_hdr(ret, ehdr);
+                }
+
+        }
         // __debug_config(&config);
 }
