@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) Fadhil Riyanto <fadhil.riyanto@gnuweeb.org>
+ * Copyright (C) Fadhil Riyanto <me@fadev.org>
  *
  * this version is inspired by Ammar Faizi's versions
  * ref: https://gist.githubusercontent.com/ammarfaizi2/e88a21171358b5092a3df412eeb80b2f/raw/59141b48f59b70b1e96208716c45b1703c56daa7/vt_hexdump.h
@@ -29,12 +29,12 @@
 #endif /* VT_HEXDUMP_COLOR */
 
 #define VT_TITLE(PTR, SIZE)                                                     \
-        size_t t_ptr_size = SIZE;                                                 \
-        unsigned char *t_realptr = (unsigned char*)PTR;                           \
+        size_t t_ptr_size = SIZE;                                               \
+        unsigned char *t_realptr = (unsigned char*)PTR;                         \
         printf("================= VT_HEXDUMP =================\n");             \
         printf("file\t\t: %s:%d\n", __FILE__, __LINE__);                        \
         printf("func\t\t: %s\n", __FUNCTION__);                                 \
-        printf("addr\t\t: 0x%016lx\n", t_realptr);                                \
+        printf("addr\t\t: 0x%016lx\n", t_realptr);                              \
         printf("dump_size\t: %ld\n\n", t_ptr_size);
 
 #ifndef HEXDUMP

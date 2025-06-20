@@ -7,13 +7,13 @@
 #include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <inttypes.h>
 
 #ifdef __clang__
 #ifndef __hot
@@ -33,7 +33,7 @@ enum ELF_arch_type {
         UNDEFINED_ARCH /* need triage */
 };
 
-static char elf_magic[5] = {0x7F, 0x45, 0x4C, 0x46, 0x0};
+static char elf_magic[5] = { 0x7F, 0x45, 0x4C, 0x46, 0x0 };
 
 /*
  * this is ELF related
@@ -96,8 +96,9 @@ typedef struct elf64_hdr {
         Elf64_Half e_shstrndx;
 } Elf64_Ehdr;
 
-static struct option long_options[] = {
-    {"file", 1, 0, 'f'}, {"elf", 1, 0, 'e'}, NULL};
+static struct option long_options[] = { { "file", 1, 0, 'f' },
+                                        { "elfh", 1, 0, 'e' },
+                                        NULL };
 
 struct config {
         char *filename;
@@ -124,7 +125,7 @@ __cold static enum ELF_arch_type read_elf_magic(int fd) {
         memset(buf, 0, bufsize);
 
         read(fd, buf, bufsize);
-        VT_HEXDUMP(buf, bufsize);
+        // VT_HEXDUMP(buf, bufsize);
 
         if (buf[0] == elf_magic[0] && buf[1] == elf_magic[1] &&
             buf[2] == elf_magic[2] && buf[3] == elf_magic[3]) {
@@ -149,7 +150,7 @@ __cold static void interpret_elf64_hdr(int fd, Elf64_Ehdr *preallocated_hdr) {
                 perror("read()");
                 return;
         }
-        
+
         memcpy(preallocated_hdr, buf, sizeof(Elf64_Ehdr));
         asm volatile("nop");
         free(buf);
