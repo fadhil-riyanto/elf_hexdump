@@ -4,6 +4,7 @@
  */
 
 #include "hexdump.h"
+#include "getopt_custom.h"
 #include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -153,9 +154,10 @@ struct file_off_control {
         int n;
 };
 
-static struct option long_options[] = { { "file", 1, 0, 'f' },
-                                        { "header", 1, 0, 'h' },
-                                        { "hexdump", 0, 0, 'x' },
+/* 0x3f is reserved */
+static struct option long_options[] = { { "file", 1, 0, GETOPT_CUSTOM_FILE },
+                                        { "header", 1, 0, GETOPT_CUSTOM_HEADER },
+                                        { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP},
                                         NULL };
 
 struct config {
@@ -238,7 +240,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
         u_int64_t conv_optarg = 0;
 
         while (1) {
-                opt = getopt_long(argc, argv, "f:h:x::", long_options, &index);
+                opt = getopt_long(argc, argv, "", long_options, &index);
 
                 if (opt == -1) {
                         break;
@@ -248,11 +250,11 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                 case '?':
                         break;
 
-                case 'f':
+                case GETOPT_CUSTOM_FILE:
                         config->filename = optarg;
                         break;
 
-                case 'h':
+                case GETOPT_CUSTOM_HEADER:
                         conv_optarg = strtoul(optarg, NULL, 0);
 
                         if (conv_optarg == EINVAL) {
@@ -280,7 +282,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                         }
                         break;
 
-                case 'x':
+                case GETOPT_CUSTOM_HEXDUMP:
                         config->hexdump = 1;
                         break;
                 }
