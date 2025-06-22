@@ -3,8 +3,8 @@
  * Copyright (C) Fadhil Riyanto <me@fadev.org>
  */
 
-#include "hexdump.h"
 #include "getopt_custom.h"
+#include "hexdump.h"
 #include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -127,26 +127,26 @@ typedef struct elf64_shdr {
 } Elf64_Shdr;
 
 /* program table header */
-typedef struct elf32_phdr{
-  Elf32_Word	p_type;
-  Elf32_Off	p_offset;
-  Elf32_Addr	p_vaddr;
-  Elf32_Addr	p_paddr;
-  Elf32_Word	p_filesz;
-  Elf32_Word	p_memsz;
-  Elf32_Word	p_flags;
-  Elf32_Word	p_align;
+typedef struct elf32_phdr {
+        Elf32_Word p_type;
+        Elf32_Off p_offset;
+        Elf32_Addr p_vaddr;
+        Elf32_Addr p_paddr;
+        Elf32_Word p_filesz;
+        Elf32_Word p_memsz;
+        Elf32_Word p_flags;
+        Elf32_Word p_align;
 } Elf32_Phdr;
 
 typedef struct elf64_phdr {
-  Elf64_Word p_type;
-  Elf64_Word p_flags;
-  Elf64_Off p_offset;		/* Segment file offset */
-  Elf64_Addr p_vaddr;		/* Segment virtual address */
-  Elf64_Addr p_paddr;		/* Segment physical address */
-  Elf64_Xword p_filesz;		/* Segment size in file */
-  Elf64_Xword p_memsz;		/* Segment size in memory */
-  Elf64_Xword p_align;		/* Segment alignment, file & memory */
+        Elf64_Word p_type;
+        Elf64_Word p_flags;
+        Elf64_Off p_offset;   /* Segment file offset */
+        Elf64_Addr p_vaddr;   /* Segment virtual address */
+        Elf64_Addr p_paddr;   /* Segment physical address */
+        Elf64_Xword p_filesz; /* Segment size in file */
+        Elf64_Xword p_memsz;  /* Segment size in memory */
+        Elf64_Xword p_align;  /* Segment alignment, file & memory */
 } Elf64_Phdr;
 
 struct file_off_control {
@@ -155,14 +155,18 @@ struct file_off_control {
 };
 
 /* 0x3f is reserved */
-static struct option long_options[] = { { "file", 1, 0, GETOPT_CUSTOM_FILE },
-                                        { "header", 1, 0, GETOPT_CUSTOM_HEADER },
-                                        { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP},
-                                        NULL };
+static struct option long_options[] = {
+        { "file", 1, 0, GETOPT_CUSTOM_FILE },
+        { "header", 1, 0, GETOPT_CUSTOM_HEADER },
+        { "header-struct", 0, 0, GETOPT_CUSTOM_HEADER_STRUCT },
+        { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP },
+        NULL
+};
 
 struct config {
         char *filename;
         u_int8_t show_header;
+        u_int8_t show_header_struct;
         u_int8_t hexdump;
         /*
          * add more in future
@@ -282,6 +286,10 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                         }
                         break;
 
+                case GETOPT_CUSTOM_HEADER_STRUCT:
+                        config->show_header_struct = 1;
+                        break;
+
                 case GETOPT_CUSTOM_HEXDUMP:
                         config->hexdump = 1;
                         break;
@@ -319,7 +327,6 @@ __hot static int _start_hexdump(int fd) {
         for (int i = 0; i < (filesize / FILE_BUFSIZE); i++) {
                 lseek(fd, SEEK_SET,
                       (file_off_control.offset * file_off_control.n));
-
                 read(fd, buf, FILE_BUFSIZE);
                 HEXDUMP(buf, FILE_BUFSIZE);
 
@@ -340,11 +347,35 @@ __hot static int _start_hexdump(int fd) {
 __cold static void __debug_config(struct config *config) {
         printf("config->filename: %s\n"
                "config->show_header: %d\n"
+               "config->show_header_struct: %d\n"
                "config->hexdump: %d",
-               config->filename, config->show_header, config->hexdump);
+               config->filename, config->show_header,
+               config->show_header_struct, config->hexdump);
 }
 
-__cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr) {
+__cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
+        if (config->show_header_struct == 1) {
+                printf("{\n");
+                printf("  e_ident = ");
+                VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
+                printf("\n");
+                printf("  e_type = %u,\n", ehdr->e_type);
+                printf("  e_machine = %u,\n", ehdr->e_machine);
+                printf("  e_version = 0x%x,\n", ehdr->e_version);
+                printf("  e_entry = 0x%016" PRIx64 "\n", ehdr->e_entry);
+                printf("  e_phoff = 0x%016" PRIx64 "\n", ehdr->e_phoff);
+                printf("  e_shoff = 0x%016" PRIx64 "\n", ehdr->e_shoff);
+                printf("  e_flags = 0x%x,\n", ehdr->e_flags);
+                printf("  e_ehsize = %" PRIu16 ",\n", ehdr->e_ehsize);
+                printf("  e_phentsize = %" PRIu16 ",\n", ehdr->e_phentsize);
+                printf("  e_phnum = %" PRIu16 ",\n", ehdr->e_phnum);
+                printf("  e_shentsize = %" PRIu16 ",\n", ehdr->e_shentsize);
+                printf("  e_shnum = %" PRIu16 ",\n", ehdr->e_shnum);
+                printf("  e_shstrndx = %" PRIu16 ",\n", ehdr->e_shstrndx);
+                printf("}\n");
+
+                return;
+        }
         printf("ELF64 class\n");
         printf("\tType:                             %u\n", ehdr->e_type);
         printf("\tMachine:                          %u\n", ehdr->e_machine);
@@ -372,7 +403,7 @@ __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr) {
                ehdr->e_shstrndx);
 }
 
-__cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr) {
+__cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
         printf("ELF32 class\n");
         printf("\tType:                             %u\n", ehdr->e_type);
         printf("\tMachine:                          %u\n", ehdr->e_machine);
@@ -422,7 +453,7 @@ int main(int argc, char **argv) {
                         Elf64_Ehdr *ehdr =
                             (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
                         interpret_elf64_hdr(ret, ehdr);
-                        __print_elf64_hdr(ehdr);
+                        __print_elf64_hdr(ehdr, &config);
                         free(ehdr);
                 }
 
@@ -430,7 +461,7 @@ int main(int argc, char **argv) {
                         Elf32_Ehdr *ehdr =
                             (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
                         interpret_elf32_hdr(ret, ehdr);
-                        __print_elf32_hdr(ehdr);
+                        __print_elf32_hdr(ehdr, &config);
                         free(ehdr);
                 }
 
