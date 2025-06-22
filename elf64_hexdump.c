@@ -18,12 +18,12 @@
 #include <unistd.h>
 
 #ifdef __clang__
-#ifndef __hot
-#define __hot __attribute__((hot))
-#endif
-#ifndef __cold
-#define __cold __attribute__((cold))
-#endif
+# ifndef __hot
+#  define __hot __attribute__((hot))
+# endif
+# ifndef __cold
+#  define __cold __attribute__((cold))
+# endif
 #endif /* __clang__ */
 
 #define SIZE(x, y) sizeof(x) / sizeof(y)
@@ -46,23 +46,23 @@ static char elf_magic[5] = { 0x7F, 0x45, 0x4C, 0x46, 0x0 };
  */
 
 /* 32-bit ELF base types. */
-typedef u_int32_t Elf32_Addr;
-typedef u_int16_t Elf32_Half;
-typedef u_int32_t Elf32_Off;
+typedef uint32_t Elf32_Addr;
+typedef uint16_t Elf32_Half;
+typedef uint32_t Elf32_Off;
 typedef int32_t Elf32_Sword;
-typedef u_int32_t Elf32_Word;
-typedef u_int16_t Elf32_Versym;
+typedef uint32_t Elf32_Word;
+typedef uint16_t Elf32_Versym;
 
 /* 64-bit ELF base types. */
-typedef u_int64_t Elf64_Addr;
-typedef u_int16_t Elf64_Half;
+typedef uint64_t Elf64_Addr;
+typedef uint16_t Elf64_Half;
 typedef int16_t Elf64_SHalf;
-typedef u_int64_t Elf64_Off;
+typedef uint64_t Elf64_Off;
 typedef int32_t Elf64_Sword;
-typedef u_int32_t Elf64_Word;
-typedef u_int64_t Elf64_Xword;
+typedef uint32_t Elf64_Word;
+typedef uint64_t Elf64_Xword;
 typedef int64_t Elf64_Sxword;
-typedef u_int16_t Elf64_Versym;
+typedef uint16_t Elf64_Versym;
 
 /* ELF HEADER */
 typedef struct elf32_hdr {
