@@ -158,7 +158,9 @@ struct file_off_control {
 static struct option long_options[] = {
         { "file", 1, 0, GETOPT_CUSTOM_FILE },
         { "header", 1, 0, GETOPT_CUSTOM_HEADER },
+        { "ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER },
         { "header-struct", 0, 0, GETOPT_CUSTOM_HEADER_STRUCT },
+        { "header-ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT },
         { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP },
         NULL
 };
@@ -168,6 +170,9 @@ struct config {
         u_int8_t show_header;
         u_int8_t show_header_struct;
         u_int8_t hexdump;
+        u_int8_t show_program_header; /* table */
+        u_int8_t show_program_header_struct;
+        
         /*
          * add more in future
          */
@@ -236,6 +241,30 @@ __cold static void interpret_elf32_hdr(int fd, Elf32_Ehdr *preallocated_hdr) {
         free(buf);
 }
 
+__cold static Elf64_Phdr* interpret_elf64_program_header(
+        int fd, Elf64_Off elf_start, Elf64_Half e_phnum
+) {
+        /* alloc once, free at function exits */
+        u_int8_t *buf_each = (u_int8_t *)malloc(sizeof(Elf64_Phdr));
+
+        Elf64_Phdr *program_header_section = (Elf64_Phdr *)malloc(sizeof(Elf64_Phdr) * e_phnum);
+
+        for(int i = 0; i < e_phnum; i++) {
+                lseek(fd, elf_start + (sizeof(Elf64_Phdr) * i), SEEK_SET);
+
+                int ret = read(fd, buf_each, sizeof(Elf64_Phdr));
+                if (ret < 0) {
+                        perror("read() on interpret_elf64_program_header");
+                } else {
+                        memcpy(&program_header_section[i], buf_each, sizeof(Elf64_Phdr));
+                        memset(buf_each, 0, sizeof(Elf64_Phdr));
+                }
+        }
+        free(buf_each);
+
+        return program_header_section;
+}
+
 static int parse_opt(int argc, char *argv[], struct config *config) {
         int retval = 0;
         char opt = 0;
@@ -288,6 +317,14 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
 
                 case GETOPT_CUSTOM_HEADER_STRUCT:
                         config->show_header_struct = 1;
+                        break;
+
+                case GETOPT_CUSTOM_PROGRAM_HEADER:
+                        config->show_program_header = 1;
+                        break;
+
+                case GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT:
+                        config->show_program_header_struct = 1;
                         break;
 
                 case GETOPT_CUSTOM_HEXDUMP:
@@ -478,6 +515,17 @@ int main(int argc, char **argv) {
                         interpret_elf64_hdr(ret, ehdr);
                         __print_elf64_hdr(ehdr, &config);
                         free(ehdr);
+
+                        if (config.show_program_header) {
+                                Elf64_Phdr *phdr_table = interpret_elf64_program_header(
+                                        ret, 
+                                        ehdr->e_phoff, 
+                                        ehdr->e_phnum
+                                );
+
+                                // for (int i = 0; i < )
+                                VT_HEXDUMP(phdr_table, sizeof(Elf64_Phdr));
+                        }
                 }
 
                 if (elf_arch_type == ELF32) {
@@ -497,6 +545,8 @@ int main(int argc, char **argv) {
                                         "x86 (legacy) or x86-64");
                 }
         }
+
+        
 
         if (config.hexdump) {
                 _start_hexdump(ret);
