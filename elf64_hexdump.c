@@ -18,12 +18,12 @@
 #include <unistd.h>
 
 #ifdef __clang__
-# ifndef __hot
-#  define __hot __attribute__((hot))
-# endif
-# ifndef __cold
-#  define __cold __attribute__((cold))
-# endif
+#ifndef __hot
+#define __hot __attribute__((hot))
+#endif
+#ifndef __cold
+#define __cold __attribute__((cold))
+#endif
 #endif /* __clang__ */
 
 #define SIZE(x, y) sizeof(x) / sizeof(y)
@@ -99,6 +99,54 @@ typedef struct elf64_hdr {
         Elf64_Half e_shstrndx;
 } Elf64_Ehdr;
 
+/* program table header */
+typedef struct elf32_phdr {
+        Elf32_Word p_type;
+        Elf32_Off p_offset;
+        Elf32_Addr p_vaddr;
+        Elf32_Addr p_paddr;
+        Elf32_Word p_filesz;
+        Elf32_Word p_memsz;
+        Elf32_Word p_flags;
+        Elf32_Word p_align;
+} Elf32_Phdr;
+
+typedef struct elf64_phdr {
+        Elf64_Word p_type;
+        Elf64_Word p_flags;
+        Elf64_Off p_offset;   /* Segment file offset */
+        Elf64_Addr p_vaddr;   /* Segment virtual address */
+        Elf64_Addr p_paddr;   /* Segment physical address */
+        Elf64_Xword p_filesz; /* Segment size in file */
+        Elf64_Xword p_memsz;  /* Segment size in memory */
+        Elf64_Xword p_align;  /* Segment alignment, file & memory */
+} Elf64_Phdr;
+
+/* Legal values for p_type (segment type).  */
+
+#define PT_NULL 0                  /* Program header table entry unused */
+#define PT_LOAD 1                  /* Loadable program segment */
+#define PT_DYNAMIC 2               /* Dynamic linking information */
+#define PT_INTERP 3                /* Program interpreter */
+#define PT_NOTE 4                  /* Auxiliary information */
+#define PT_SHLIB 5                 /* Reserved */
+#define PT_PHDR 6                  /* Entry for header table itself */
+#define PT_TLS 7                   /* Thread-local storage segment */
+#define PT_NUM 8                   /* Number of defined types */
+#define PT_LOOS 0x60000000         /* Start of OS-specific */
+#define PT_GNU_EH_FRAME 0x6474e550 /* GCC .eh_frame_hdr segment */
+#define PT_GNU_STACK 0x6474e551    /* Indicates stack executability */
+#define PT_GNU_RELRO 0x6474e552    /* Read-only after relocation */
+#define PT_GNU_PROPERTY 0x6474e553 /* GNU property */
+#define PT_GNU_SFRAME 0x6474e554   /* SFrame segment.  */
+#define PT_LOSUNW 0x6ffffffa
+#define PT_SUNWBSS 0x6ffffffa   /* Sun Specific segment */
+#define PT_SUNWSTACK 0x6ffffffb /* Stack segment */
+#define PT_HISUNW 0x6fffffff
+#define PT_HIOS 0x6fffffff   /* End of OS-specific */
+#define PT_LOPROC 0x70000000 /* Start of processor-specific */
+#define PT_HIPROC 0x7fffffff /* End of processor-specific */
+
 /* ELF section header */
 typedef struct elf32_shdr {
         Elf32_Word sh_name;
@@ -126,29 +174,6 @@ typedef struct elf64_shdr {
         Elf64_Xword sh_entsize;   /* Entry size if section holds table */
 } Elf64_Shdr;
 
-/* program table header */
-typedef struct elf32_phdr {
-        Elf32_Word p_type;
-        Elf32_Off p_offset;
-        Elf32_Addr p_vaddr;
-        Elf32_Addr p_paddr;
-        Elf32_Word p_filesz;
-        Elf32_Word p_memsz;
-        Elf32_Word p_flags;
-        Elf32_Word p_align;
-} Elf32_Phdr;
-
-typedef struct elf64_phdr {
-        Elf64_Word p_type;
-        Elf64_Word p_flags;
-        Elf64_Off p_offset;   /* Segment file offset */
-        Elf64_Addr p_vaddr;   /* Segment virtual address */
-        Elf64_Addr p_paddr;   /* Segment physical address */
-        Elf64_Xword p_filesz; /* Segment size in file */
-        Elf64_Xword p_memsz;  /* Segment size in memory */
-        Elf64_Xword p_align;  /* Segment alignment, file & memory */
-} Elf64_Phdr;
-
 struct file_off_control {
         u_int64_t offset;
         int n;
@@ -172,11 +197,224 @@ struct config {
         u_int8_t hexdump;
         u_int8_t show_program_header; /* table */
         u_int8_t show_program_header_struct;
-        
+
         /*
          * add more in future
          */
 };
+
+
+__cold static void __debug_config(struct config *config) {
+        printf("config->filename: %s\n"
+               "config->show_header: %d\n"
+               "config->show_header_struct: %d\n"
+               "config->hexdump: %d"
+               "config->show_program_header: %d",
+
+               config->filename, config->show_header,
+               config->show_header_struct, config->hexdump,
+               config->show_program_header);
+}
+
+__cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
+        if (config->show_header_struct == 1) {
+                printf("{\n");
+                printf("  e_ident = ");
+                VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
+                printf("\n");
+                printf("  e_type = %u,\n", ehdr->e_type);
+                printf("  e_machine = %u,\n", ehdr->e_machine);
+                printf("  e_version = 0x%x,\n", ehdr->e_version);
+                printf("  e_entry = 0x%016" PRIx64 "\n", ehdr->e_entry);
+                printf("  e_phoff = 0x%016" PRIx64 "\n", ehdr->e_phoff);
+                printf("  e_shoff = 0x%016" PRIx64 "\n", ehdr->e_shoff);
+                printf("  e_flags = 0x%x,\n", ehdr->e_flags);
+                printf("  e_ehsize = %" PRIu16 ",\n", ehdr->e_ehsize);
+                printf("  e_phentsize = %" PRIu16 ",\n", ehdr->e_phentsize);
+                printf("  e_phnum = %" PRIu16 ",\n", ehdr->e_phnum);
+                printf("  e_shentsize = %" PRIu16 ",\n", ehdr->e_shentsize);
+                printf("  e_shnum = %" PRIu16 ",\n", ehdr->e_shnum);
+                printf("  e_shstrndx = %" PRIu16 ",\n", ehdr->e_shstrndx);
+                printf("}\n");
+
+                return;
+        } else if (config->show_header == 1) {
+
+                printf("ELF64 class\n");
+                printf("\tType:                             %u\n",
+                       ehdr->e_type);
+                printf("\tMachine:                          %u\n",
+                       ehdr->e_machine);
+                printf("\tVersion:                          0x%x\n",
+                       ehdr->e_version);
+                printf("\tEntry point address:              0x%016" PRIx64 "\n",
+                       ehdr->e_entry);
+                printf("\tStart of program headers:         %" PRIu64
+                       " (bytes into file)\n",
+                       ehdr->e_phoff);
+                printf("\tStart of section headers:         %" PRIu64
+                       " (bytes into file)\n",
+                       ehdr->e_shoff);
+                printf("\tFlags:                            0x%x\n",
+                       ehdr->e_flags);
+                printf("\tSize of this header:              %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_ehsize);
+                printf("\tSize of program headers:          %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_phentsize);
+                printf("\tNumber of program headers:        %" PRIu16 "\n",
+                       ehdr->e_phnum);
+                printf("\tSize of section headers:          %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_shentsize);
+                printf("\tNumber of section headers:        %" PRIu16 "\n",
+                       ehdr->e_shnum);
+                printf("\tSection header string table index:%" PRIu16 "\n",
+                       ehdr->e_shstrndx);
+        } else {
+                // NOP
+        }
+}
+
+__cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
+        if (config->show_header_struct == 1) {
+                printf("{\n");
+                printf("  e_ident = ");
+                VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
+                printf("\n");
+                printf("  e_type = %u,\n", ehdr->e_type);
+                printf("  e_machine = %u,\n", ehdr->e_machine);
+                printf("  e_version = 0x%x,\n", ehdr->e_version);
+                printf("  e_entry = 0x%016" PRIx32 "\n", ehdr->e_entry);
+                printf("  e_phoff = 0x%016" PRIx32 "\n", ehdr->e_phoff);
+                printf("  e_shoff = 0x%016" PRIx32 "\n", ehdr->e_shoff);
+                printf("  e_flags = 0x%x,\n", ehdr->e_flags);
+                printf("  e_ehsize = %" PRIu16 ",\n", ehdr->e_ehsize);
+                printf("  e_phentsize = %" PRIu16 ",\n", ehdr->e_phentsize);
+                printf("  e_phnum = %" PRIu16 ",\n", ehdr->e_phnum);
+                printf("  e_shentsize = %" PRIu16 ",\n", ehdr->e_shentsize);
+                printf("  e_shnum = %" PRIu16 ",\n", ehdr->e_shnum);
+                printf("  e_shstrndx = %" PRIu16 ",\n", ehdr->e_shstrndx);
+                printf("}\n");
+
+                return;
+        } else if (config->show_header) {
+
+                printf("ELF32 class\n");
+                printf("\tType:                             %u\n",
+                       ehdr->e_type);
+                printf("\tMachine:                          %u\n",
+                       ehdr->e_machine);
+                printf("\tVersion:                          0x%x\n",
+                       ehdr->e_version);
+                printf("\tEntry point address:              0x%016" PRIx32 "\n",
+                       ehdr->e_entry);
+                printf("\tStart of program headers:         %" PRIu32
+                       " (bytes into file)\n",
+                       ehdr->e_phoff);
+                printf("\tStart of section headers:         %" PRIu32
+                       " (bytes into file)\n",
+                       ehdr->e_shoff);
+                printf("\tFlags:                            0x%x\n",
+                       ehdr->e_flags);
+                printf("\tSize of this header:              %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_ehsize);
+                printf("\tSize of program headers:          %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_phentsize);
+                printf("\tNumber of program headers:        %" PRIu16 "\n",
+                       ehdr->e_phnum);
+                printf("\tSize of section headers:          %" PRIu16
+                       " (bytes)\n",
+                       ehdr->e_shentsize);
+                printf("\tNumber of section headers:        %" PRIu16 "\n",
+                       ehdr->e_shnum);
+                printf("\tSection header string table index:%" PRIu16 "\n",
+                       ehdr->e_shstrndx);
+        } else {
+                // NOP
+        }
+}
+
+__cold static void __print_table_header() {
+        printf("Type\t\t"
+               "offset\t\t"
+               "virtual addr\t\t"
+               "physical addr\t\t"
+               "filesz\t\t"
+               "flags\t\t"
+               "align\n\n");
+}
+
+__cold static void __print_elf64_ph_table(Elf64_Phdr *data) {
+        // for()
+
+        __print_table_header();
+
+        switch (data[0].p_type) {
+        case PT_NULL:
+                printf("PT_NULL");
+                break;
+        case PT_LOAD:
+                printf("PT_LOAD");
+                break;
+        case PT_DYNAMIC:
+                printf("PT_DYNAMIC");
+                break;
+        case PT_INTERP:
+                printf("PT_INTERP");
+                break;
+        case PT_NOTE:
+                printf("PT_NOTE");
+                break;
+        case PT_SHLIB:
+                printf("PT_SHLIB");
+                break;
+        case PT_PHDR:
+                printf("PT_PHDR");
+                break;
+        case PT_TLS:
+                printf("PT_TLS");
+                break;
+        case PT_NUM:
+                printf("PT_NUM");
+                break;
+        case PT_GNU_EH_FRAME:
+                printf("PT_GNU_EH_FRAME");
+                break;
+        case PT_GNU_STACK:
+                printf("PT_GNU_STACK");
+                break;
+        case PT_GNU_RELRO:
+                printf("PT_GNU_RELRO");
+                break;
+        case PT_GNU_PROPERTY:
+                printf("PT_GNU_PROPERTY");
+                break;
+        case PT_GNU_SFRAME:
+                printf("PT_GNU_SFRAME");
+                break;
+        case PT_SUNWBSS:
+                printf("PT_LOSUNW/PT_SUNWBSS");
+                break;
+        case PT_SUNWSTACK:
+                printf("PT_SUNWSTACK");
+                break;
+        default:
+                if (data->p_type >= PT_LOOS && data->p_type <= PT_HIOS) {
+                        printf("OS_SPESIFIC");
+                } else if (data->p_type >= PT_LOPROC &&
+                           data->p_type <= PT_HIPROC) {
+                        printf("PROCESSOR_SPESIFIC");
+                } else {
+                        printf("UNKNOWN");
+                }
+                break;
+        }
+}
+
 
 static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
@@ -241,22 +479,24 @@ __cold static void interpret_elf32_hdr(int fd, Elf32_Ehdr *preallocated_hdr) {
         free(buf);
 }
 
-__cold static Elf64_Phdr* interpret_elf64_program_header(
-        int fd, Elf64_Off elf_start, Elf64_Half e_phnum
-) {
+__cold static Elf64_Phdr *interpret_elf64_program_header(int fd,
+                                                         Elf64_Off elf_start,
+                                                         Elf64_Half e_phnum) {
         /* alloc once, free at function exits */
         u_int8_t *buf_each = (u_int8_t *)malloc(sizeof(Elf64_Phdr));
 
-        Elf64_Phdr *program_header_section = (Elf64_Phdr *)malloc(sizeof(Elf64_Phdr) * e_phnum);
+        Elf64_Phdr *program_header_section =
+            (Elf64_Phdr *)malloc(sizeof(Elf64_Phdr) * e_phnum);
 
-        for(int i = 0; i < e_phnum; i++) {
+        for (int i = 0; i < e_phnum; i++) {
                 lseek(fd, elf_start + (sizeof(Elf64_Phdr) * i), SEEK_SET);
 
                 int ret = read(fd, buf_each, sizeof(Elf64_Phdr));
                 if (ret < 0) {
                         perror("read() on interpret_elf64_program_header");
                 } else {
-                        memcpy(&program_header_section[i], buf_each, sizeof(Elf64_Phdr));
+                        memcpy(&program_header_section[i], buf_each,
+                               sizeof(Elf64_Phdr));
                         memset(buf_each, 0, sizeof(Elf64_Phdr));
                 }
         }
@@ -381,116 +621,6 @@ __hot static int _start_hexdump(int fd) {
         free(buf);
 }
 
-__cold static void __debug_config(struct config *config) {
-        printf("config->filename: %s\n"
-               "config->show_header: %d\n"
-               "config->show_header_struct: %d\n"
-               "config->hexdump: %d",
-               config->filename, config->show_header,
-               config->show_header_struct, config->hexdump);
-}
-
-__cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
-        if (config->show_header_struct == 1) {
-                printf("{\n");
-                printf("  e_ident = ");
-                VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
-                printf("\n");
-                printf("  e_type = %u,\n", ehdr->e_type);
-                printf("  e_machine = %u,\n", ehdr->e_machine);
-                printf("  e_version = 0x%x,\n", ehdr->e_version);
-                printf("  e_entry = 0x%016" PRIx64 "\n", ehdr->e_entry);
-                printf("  e_phoff = 0x%016" PRIx64 "\n", ehdr->e_phoff);
-                printf("  e_shoff = 0x%016" PRIx64 "\n", ehdr->e_shoff);
-                printf("  e_flags = 0x%x,\n", ehdr->e_flags);
-                printf("  e_ehsize = %" PRIu16 ",\n", ehdr->e_ehsize);
-                printf("  e_phentsize = %" PRIu16 ",\n", ehdr->e_phentsize);
-                printf("  e_phnum = %" PRIu16 ",\n", ehdr->e_phnum);
-                printf("  e_shentsize = %" PRIu16 ",\n", ehdr->e_shentsize);
-                printf("  e_shnum = %" PRIu16 ",\n", ehdr->e_shnum);
-                printf("  e_shstrndx = %" PRIu16 ",\n", ehdr->e_shstrndx);
-                printf("}\n");
-
-                return;
-        }
-        printf("ELF64 class\n");
-        printf("\tType:                             %u\n", ehdr->e_type);
-        printf("\tMachine:                          %u\n", ehdr->e_machine);
-        printf("\tVersion:                          0x%x\n", ehdr->e_version);
-        printf("\tEntry point address:              0x%016" PRIx64 "\n",
-               ehdr->e_entry);
-        printf("\tStart of program headers:         %" PRIu64
-               " (bytes into file)\n",
-               ehdr->e_phoff);
-        printf("\tStart of section headers:         %" PRIu64
-               " (bytes into file)\n",
-               ehdr->e_shoff);
-        printf("\tFlags:                            0x%x\n", ehdr->e_flags);
-        printf("\tSize of this header:              %" PRIu16 " (bytes)\n",
-               ehdr->e_ehsize);
-        printf("\tSize of program headers:          %" PRIu16 " (bytes)\n",
-               ehdr->e_phentsize);
-        printf("\tNumber of program headers:        %" PRIu16 "\n",
-               ehdr->e_phnum);
-        printf("\tSize of section headers:          %" PRIu16 " (bytes)\n",
-               ehdr->e_shentsize);
-        printf("\tNumber of section headers:        %" PRIu16 "\n",
-               ehdr->e_shnum);
-        printf("\tSection header string table index:%" PRIu16 "\n",
-               ehdr->e_shstrndx);
-}
-
-__cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
-         if (config->show_header_struct == 1) {
-                printf("{\n");
-                printf("  e_ident = ");
-                VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
-                printf("\n");
-                printf("  e_type = %u,\n", ehdr->e_type);
-                printf("  e_machine = %u,\n", ehdr->e_machine);
-                printf("  e_version = 0x%x,\n", ehdr->e_version);
-                printf("  e_entry = 0x%016" PRIx32 "\n", ehdr->e_entry);
-                printf("  e_phoff = 0x%016" PRIx32 "\n", ehdr->e_phoff);
-                printf("  e_shoff = 0x%016" PRIx32 "\n", ehdr->e_shoff);
-                printf("  e_flags = 0x%x,\n", ehdr->e_flags);
-                printf("  e_ehsize = %" PRIu16 ",\n", ehdr->e_ehsize);
-                printf("  e_phentsize = %" PRIu16 ",\n", ehdr->e_phentsize);
-                printf("  e_phnum = %" PRIu16 ",\n", ehdr->e_phnum);
-                printf("  e_shentsize = %" PRIu16 ",\n", ehdr->e_shentsize);
-                printf("  e_shnum = %" PRIu16 ",\n", ehdr->e_shnum);
-                printf("  e_shstrndx = %" PRIu16 ",\n", ehdr->e_shstrndx);
-                printf("}\n");
-
-                return;
-        }
-
-        printf("ELF32 class\n");
-        printf("\tType:                             %u\n", ehdr->e_type);
-        printf("\tMachine:                          %u\n", ehdr->e_machine);
-        printf("\tVersion:                          0x%x\n", ehdr->e_version);
-        printf("\tEntry point address:              0x%016" PRIx32 "\n",
-               ehdr->e_entry);
-        printf("\tStart of program headers:         %" PRIu32
-               " (bytes into file)\n",
-               ehdr->e_phoff);
-        printf("\tStart of section headers:         %" PRIu32
-               " (bytes into file)\n",
-               ehdr->e_shoff);
-        printf("\tFlags:                            0x%x\n", ehdr->e_flags);
-        printf("\tSize of this header:              %" PRIu16 " (bytes)\n",
-               ehdr->e_ehsize);
-        printf("\tSize of program headers:          %" PRIu16 " (bytes)\n",
-               ehdr->e_phentsize);
-        printf("\tNumber of program headers:        %" PRIu16 "\n",
-               ehdr->e_phnum);
-        printf("\tSize of section headers:          %" PRIu16 " (bytes)\n",
-               ehdr->e_shentsize);
-        printf("\tNumber of section headers:        %" PRIu16 "\n",
-               ehdr->e_shnum);
-        printf("\tSection header string table index:%" PRIu16 "\n",
-               ehdr->e_shstrndx);
-}
-
 int main(int argc, char **argv) {
         struct config config;
         memset(&config, 0, sizeof(config));
@@ -505,48 +635,41 @@ int main(int argc, char **argv) {
                 // asm volatile("nop");
                 // printf(const char *restrict format, ...)
         }
-        if (config.show_header) {
 
-                int elf_arch_type = read_elf_magic(ret);
+        int elf_arch_type = read_elf_magic(ret);
 
-                if (elf_arch_type == ELF64) {
-                        Elf64_Ehdr *ehdr =
-                            (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
-                        interpret_elf64_hdr(ret, ehdr);
-                        __print_elf64_hdr(ehdr, &config);
-                        free(ehdr);
+        if (elf_arch_type == ELF64) {
+                Elf64_Ehdr *ehdr = (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
+                interpret_elf64_hdr(ret, ehdr);
+                __print_elf64_hdr(ehdr, &config);
+                free(ehdr);
 
-                        if (config.show_program_header) {
-                                Elf64_Phdr *phdr_table = interpret_elf64_program_header(
-                                        ret, 
-                                        ehdr->e_phoff, 
-                                        ehdr->e_phnum
-                                );
+                if (config.show_program_header) {
+                        Elf64_Phdr *phdr_table = interpret_elf64_program_header(
+                            ret, ehdr->e_phoff, ehdr->e_phnum);
 
-                                // for (int i = 0; i < )
-                                VT_HEXDUMP(phdr_table, sizeof(Elf64_Phdr));
-                        }
-                }
-
-                if (elf_arch_type == ELF32) {
-                        Elf32_Ehdr *ehdr =
-                            (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
-                        interpret_elf32_hdr(ret, ehdr);
-                        __print_elf32_hdr(ehdr, &config);
-                        free(ehdr);
-                }
-
-                if (elf_arch_type == NOT_ELF) {
-                        fprintf(stderr, "NOT A ELF FILE!");
-                }
-
-                if (elf_arch_type == UNDEFINED_ARCH) {
-                        fprintf(stderr, "its confirmed as ELF, but arch is not "
-                                        "x86 (legacy) or x86-64");
+                        // for (int i = 0; i < )
+                        __print_elf64_ph_table(phdr_table);
+                        free(phdr_table);
+                        // VT_HEXDUMP(phdr_table, sizeof(Elf64_Phdr));
                 }
         }
 
-        
+        if (elf_arch_type == ELF32) {
+                Elf32_Ehdr *ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
+                interpret_elf32_hdr(ret, ehdr);
+                __print_elf32_hdr(ehdr, &config);
+                free(ehdr);
+        }
+
+        if (elf_arch_type == NOT_ELF) {
+                fprintf(stderr, "NOT A ELF FILE!\n");
+        }
+
+        if (elf_arch_type == UNDEFINED_ARCH) {
+                fprintf(stderr, "its confirmed as ELF, but arch is not "
+                                "x86 (legacy) or x86-64\n");
+        }
 
         if (config.hexdump) {
                 _start_hexdump(ret);
