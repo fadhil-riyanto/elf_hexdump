@@ -3,8 +3,11 @@
  * Copyright (C) Fadhil Riyanto <me@fadev.org>
  */
 
+#define USE_PRETTY_PRINT_PAD_COUNT
+
 #include "getopt_custom.h"
 #include "hexdump.h"
+#include "print_pretty.h"
 #include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -147,6 +150,12 @@ typedef struct elf64_phdr {
 #define PT_LOPROC 0x70000000 /* Start of processor-specific */
 #define PT_HIPROC 0x7fffffff /* End of processor-specific */
 
+#define PF_X (1 << 0)          /* Segment is executable */
+#define PF_W (1 << 1)          /* Segment is writable */
+#define PF_R (1 << 2)          /* Segment is readable */
+#define PF_MASKOS 0x0ff00000   /* OS-specific */
+#define PF_MASKPROC 0xf0000000 /* Processor-specific */
+
 /* ELF section header */
 typedef struct elf32_shdr {
         Elf32_Word sh_name;
@@ -202,7 +211,6 @@ struct config {
          * add more in future
          */
 };
-
 
 __cold static void __debug_config(struct config *config) {
         printf("config->filename: %s\n"
@@ -339,82 +347,157 @@ __cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
 }
 
 __cold static void __print_table_header() {
-        printf("Type\t\t"
-               "offset\t\t"
-               "virtual addr\t\t"
-               "physical addr\t\t"
-               "filesz\t\t"
-               "flags\t\t"
-               "align\n\n");
+        PRINT_PRETTY_PAD_COUNT("type", 4, 16);
+        PRINT_PRETTY_PAD_COUNT("flags", 5, 9);
+        PRINT_PRETTY_PAD_COUNT("offset", 6, 19);
+        PRINT_PRETTY_PAD_COUNT("virtual addr", 12, 19);
+        PRINT_PRETTY_PAD_COUNT("physical addr", 13, 19);
+        PRINT_PRETTY_PAD_COUNT("file size", 9, 19);
+        PRINT_PRETTY_PAD_COUNT("mem size", 8, 19);
+        PRINT_PRETTY_PAD_COUNT("align", 5, 19);
+
+        printf("\n");
+
+        for (int i = 0; i < __init_print_pad_count; i++) {
+                printf("-");
+        }
+
+        PRETTY_PRINT_PAD_COUNT_RESET();
+        printf("\n");
+
+        // printf("Type\t\t"
+        //        "offset\t\t"
+        //        "virtual addr\t\t"
+        //        "physical addr\t\t"
+        //        "filesz\t\t"
+        //        "flags\t\t"
+        //        "align\n\n");
 }
 
-__cold static void __print_elf64_ph_table(Elf64_Phdr *data) {
-        // for()
-
+__cold static void __print_elf64_ph_table(Elf64_Phdr *data,
+                                          Elf64_Half e_phnum) {
         __print_table_header();
 
-        switch (data[0].p_type) {
-        case PT_NULL:
-                printf("PT_NULL");
-                break;
-        case PT_LOAD:
-                printf("PT_LOAD");
-                break;
-        case PT_DYNAMIC:
-                printf("PT_DYNAMIC");
-                break;
-        case PT_INTERP:
-                printf("PT_INTERP");
-                break;
-        case PT_NOTE:
-                printf("PT_NOTE");
-                break;
-        case PT_SHLIB:
-                printf("PT_SHLIB");
-                break;
-        case PT_PHDR:
-                printf("PT_PHDR");
-                break;
-        case PT_TLS:
-                printf("PT_TLS");
-                break;
-        case PT_NUM:
-                printf("PT_NUM");
-                break;
-        case PT_GNU_EH_FRAME:
-                printf("PT_GNU_EH_FRAME");
-                break;
-        case PT_GNU_STACK:
-                printf("PT_GNU_STACK");
-                break;
-        case PT_GNU_RELRO:
-                printf("PT_GNU_RELRO");
-                break;
-        case PT_GNU_PROPERTY:
-                printf("PT_GNU_PROPERTY");
-                break;
-        case PT_GNU_SFRAME:
-                printf("PT_GNU_SFRAME");
-                break;
-        case PT_SUNWBSS:
-                printf("PT_LOSUNW/PT_SUNWBSS");
-                break;
-        case PT_SUNWSTACK:
-                printf("PT_SUNWSTACK");
-                break;
-        default:
-                if (data->p_type >= PT_LOOS && data->p_type <= PT_HIOS) {
-                        printf("OS_SPESIFIC");
-                } else if (data->p_type >= PT_LOPROC &&
-                           data->p_type <= PT_HIPROC) {
-                        printf("PROCESSOR_SPESIFIC");
-                } else {
-                        printf("UNKNOWN");
+        for (int i = 0; i < e_phnum; i++) {
+                switch (data[i].p_type) {
+                case PT_NULL:
+                        PRINT_PRETTY("NULL", strlen("NULL"), 16);
+                        break;
+                case PT_LOAD:
+                        PRINT_PRETTY("LOAD", strlen("LOAD"), 16);
+                        break;
+                case PT_DYNAMIC:
+                        PRINT_PRETTY("DYNAMIC", strlen("DYNAMIC"), 16);
+                        break;
+                case PT_INTERP:
+                        PRINT_PRETTY("INTERP", strlen("INTERP"), 16);
+                        break;
+                case PT_NOTE:
+                        PRINT_PRETTY("NOTE", strlen("NOTE"), 16);
+                        break;
+                case PT_SHLIB:
+                        PRINT_PRETTY("SHLIB", strlen("SHLIB"), 16);
+                        break;
+                case PT_PHDR:
+                        PRINT_PRETTY("PHDR", strlen("PHDR"), 16);
+                        break;
+                case PT_TLS:
+                        PRINT_PRETTY("TLS", strlen("TLS"), 16);
+                        break;
+                case PT_NUM:
+                        PRINT_PRETTY("NUM", strlen("NUM"), 16);
+                        break;
+                case PT_GNU_EH_FRAME:
+                        PRINT_PRETTY("GNU_EH_FRAME", strlen("GNU_EH_FRAME"),
+                                     16);
+                        break;
+                case PT_GNU_STACK:
+                        PRINT_PRETTY("GNU_STACK", strlen("GNU_STACK"), 16);
+                        break;
+                case PT_GNU_RELRO:
+                        PRINT_PRETTY("GNU_RELRO", strlen("GNU_RELRO"), 16);
+                        break;
+                case PT_GNU_PROPERTY:
+                        PRINT_PRETTY("GNU_PROPERTY", strlen("GNU_PROPERTY"),
+                                     16);
+                        break;
+                case PT_GNU_SFRAME:
+                        PRINT_PRETTY("GNU_SFRAME", strlen("GNU_SFRAME"), 16);
+                        break;
+                case PT_SUNWBSS:
+                        PRINT_PRETTY("LOSUNW/SUNWBSS", strlen("LOSUNW/SUNWBSS"),
+                                     16);
+                        break;
+                case PT_SUNWSTACK:
+                        PRINT_PRETTY("SUNWSTACK", strlen("SUNWSTACK"), 16);
+                        break;
+                default:
+                        if (data->p_type >= PT_LOOS &&
+                            data->p_type <= PT_HIOS) {
+                                PRINT_PRETTY("OS_SPESIFIC",
+                                             strlen("OS_SPESIFIC"), 16);
+                        } else if (data->p_type >= PT_LOPROC &&
+                                   data->p_type <= PT_HIPROC) {
+                                PRINT_PRETTY("PROCESSOR_SPESIFIC",
+                                             strlen("PROCESSOR_SPESIFIC"), 16);
+                        } else {
+                                PRINT_PRETTY("UNKNOWN", strlen("UNKNOWN"), 16);
+                        }
+                        break;
+
+                        /* pad */
+                        // printf("\t\t");
                 }
-                break;
+
+                /* print flags */
+                if (data[i].p_flags == PF_X) {
+                        PRINT_PRETTY("X", 1, 9);
+                } else if (data[i].p_flags == PF_W) {
+                        PRINT_PRETTY("W", 1, 9);
+                } else if (data[i].p_flags == PF_R) {
+                        PRINT_PRETTY("R", 1, 9);
+                } else if (data[i].p_flags == PF_MASKOS) {
+                        PRINT_PRETTY("MASKOS", 6, 9);
+                } else if (data[i].p_flags == PF_MASKPROC) {
+                        PRINT_PRETTY("MASKPROC", 7, 9);
+                } else if (data[i].p_flags == (PF_R | PF_W)) {
+                        PRINT_PRETTY("RW", 2, 9);
+                } else if (data[i].p_flags == (PF_R | PF_X)) {
+                        PRINT_PRETTY("RX", 2, 9);
+                } else if (data[i].p_flags == (PF_R | PF_X | PF_W)) {
+                        PRINT_PRETTY("RXW", 3, 9);
+                } else {
+                        PRINT_PRETTY("UNDEF", 5, 9);
+                }
+
+                // /* print offset */
+                PRINT_PRETTYF("0x%016lx", data[i].p_offset, 18, 19);
+
+                /* print vaddr */
+                PRINT_PRETTYF("0x%016lx", data[i].p_vaddr, 18, 19);
+
+                /* print paddr */
+                PRINT_PRETTYF("0x%016lx", data[i].p_paddr, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%016lx", data[i].p_filesz, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%016lx", data[i].p_memsz, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%0lx", data[i].p_align, 18, 19);
+
+                
+                // char predicted_max_int[20];
+                // sprintf(predicted_max_int, "%lu", data[i].p_filesz);
+                // PRINT_PRETTYF("%s", predicted_max_int,
+                //               strlen(predicted_max_int), 18);
+
+                /* end */
+                printf("\n");
         }
 }
-
 
 static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
@@ -649,7 +732,7 @@ int main(int argc, char **argv) {
                             ret, ehdr->e_phoff, ehdr->e_phnum);
 
                         // for (int i = 0; i < )
-                        __print_elf64_ph_table(phdr_table);
+                        __print_elf64_ph_table(phdr_table, ehdr->e_phnum);
                         free(phdr_table);
                         // VT_HEXDUMP(phdr_table, sizeof(Elf64_Phdr));
                 }
