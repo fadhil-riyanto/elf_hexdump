@@ -9,6 +9,7 @@
 #include "hexdump.h"
 #include "print_pretty.h"
 #include <asm-generic/errno-base.h>
+#include <elf.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
@@ -30,7 +31,7 @@
 #endif /* __clang__ */
 
 #define SIZE(x, y) sizeof(x) / sizeof(y)
-#define EI_NIDENT 16
+// #define EI_NIDENT 16
 #define FILE_BUFSIZE 4096 /* BYTES */
 
 enum ELF_arch_type {
@@ -42,147 +43,6 @@ enum ELF_arch_type {
 
 static char elf_magic[5] = { 0x7F, 0x45, 0x4C, 0x46, 0x0 };
 
-/*
- * this is ELF related
- * ported from:
- * https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234
- */
-
-/* 32-bit ELF base types. */
-typedef uint32_t Elf32_Addr;
-typedef uint16_t Elf32_Half;
-typedef uint32_t Elf32_Off;
-typedef int32_t Elf32_Sword;
-typedef uint32_t Elf32_Word;
-typedef uint16_t Elf32_Versym;
-
-/* 64-bit ELF base types. */
-typedef uint64_t Elf64_Addr;
-typedef uint16_t Elf64_Half;
-typedef int16_t Elf64_SHalf;
-typedef uint64_t Elf64_Off;
-typedef int32_t Elf64_Sword;
-typedef uint32_t Elf64_Word;
-typedef uint64_t Elf64_Xword;
-typedef int64_t Elf64_Sxword;
-typedef uint16_t Elf64_Versym;
-
-/* ELF HEADER */
-typedef struct elf32_hdr {
-        unsigned char e_ident[EI_NIDENT];
-        Elf32_Half e_type;
-        Elf32_Half e_machine;
-        Elf32_Word e_version;
-        Elf32_Addr e_entry; /* Entry point */
-        Elf32_Off e_phoff;
-        Elf32_Off e_shoff;
-        Elf32_Word e_flags;
-        Elf32_Half e_ehsize;
-        Elf32_Half e_phentsize;
-        Elf32_Half e_phnum;
-        Elf32_Half e_shentsize;
-        Elf32_Half e_shnum;
-        Elf32_Half e_shstrndx;
-} Elf32_Ehdr;
-
-typedef struct elf64_hdr {
-        unsigned char e_ident[EI_NIDENT]; /* ELF "magic number" */
-        Elf64_Half e_type;
-        Elf64_Half e_machine;
-        Elf64_Word e_version;
-        Elf64_Addr e_entry; /* Entry point virtual address */
-        Elf64_Off e_phoff;  /* Program header table file offset */
-        Elf64_Off e_shoff;  /* Section header table file offset */
-        Elf64_Word e_flags;
-        Elf64_Half e_ehsize;
-        Elf64_Half e_phentsize;
-        Elf64_Half e_phnum;
-        Elf64_Half e_shentsize;
-        Elf64_Half e_shnum;
-        Elf64_Half e_shstrndx;
-} Elf64_Ehdr;
-
-/* program table header */
-typedef struct elf32_phdr {
-        Elf32_Word p_type;
-        Elf32_Off p_offset;
-        Elf32_Addr p_vaddr;
-        Elf32_Addr p_paddr;
-        Elf32_Word p_filesz;
-        Elf32_Word p_memsz;
-        Elf32_Word p_flags;
-        Elf32_Word p_align;
-} Elf32_Phdr;
-
-typedef struct elf64_phdr {
-        Elf64_Word p_type;
-        Elf64_Word p_flags;
-        Elf64_Off p_offset;   /* Segment file offset */
-        Elf64_Addr p_vaddr;   /* Segment virtual address */
-        Elf64_Addr p_paddr;   /* Segment physical address */
-        Elf64_Xword p_filesz; /* Segment size in file */
-        Elf64_Xword p_memsz;  /* Segment size in memory */
-        Elf64_Xword p_align;  /* Segment alignment, file & memory */
-} Elf64_Phdr;
-
-/* Legal values for p_type (segment type).  */
-
-#define PT_NULL 0                  /* Program header table entry unused */
-#define PT_LOAD 1                  /* Loadable program segment */
-#define PT_DYNAMIC 2               /* Dynamic linking information */
-#define PT_INTERP 3                /* Program interpreter */
-#define PT_NOTE 4                  /* Auxiliary information */
-#define PT_SHLIB 5                 /* Reserved */
-#define PT_PHDR 6                  /* Entry for header table itself */
-#define PT_TLS 7                   /* Thread-local storage segment */
-#define PT_NUM 8                   /* Number of defined types */
-#define PT_LOOS 0x60000000         /* Start of OS-specific */
-#define PT_GNU_EH_FRAME 0x6474e550 /* GCC .eh_frame_hdr segment */
-#define PT_GNU_STACK 0x6474e551    /* Indicates stack executability */
-#define PT_GNU_RELRO 0x6474e552    /* Read-only after relocation */
-#define PT_GNU_PROPERTY 0x6474e553 /* GNU property */
-#define PT_GNU_SFRAME 0x6474e554   /* SFrame segment.  */
-#define PT_LOSUNW 0x6ffffffa
-#define PT_SUNWBSS 0x6ffffffa   /* Sun Specific segment */
-#define PT_SUNWSTACK 0x6ffffffb /* Stack segment */
-#define PT_HISUNW 0x6fffffff
-#define PT_HIOS 0x6fffffff   /* End of OS-specific */
-#define PT_LOPROC 0x70000000 /* Start of processor-specific */
-#define PT_HIPROC 0x7fffffff /* End of processor-specific */
-
-#define PF_X (1 << 0)          /* Segment is executable */
-#define PF_W (1 << 1)          /* Segment is writable */
-#define PF_R (1 << 2)          /* Segment is readable */
-#define PF_MASKOS 0x0ff00000   /* OS-specific */
-#define PF_MASKPROC 0xf0000000 /* Processor-specific */
-
-/* ELF section header */
-typedef struct elf32_shdr {
-        Elf32_Word sh_name;
-        Elf32_Word sh_type;
-        Elf32_Word sh_flags;
-        Elf32_Addr sh_addr;
-        Elf32_Off sh_offset;
-        Elf32_Word sh_size;
-        Elf32_Word sh_link;
-        Elf32_Word sh_info;
-        Elf32_Word sh_addralign;
-        Elf32_Word sh_entsize;
-} Elf32_Shdr;
-
-typedef struct elf64_shdr {
-        Elf64_Word sh_name;       /* Section name, index in string tbl */
-        Elf64_Word sh_type;       /* Type of section */
-        Elf64_Xword sh_flags;     /* Miscellaneous section attributes */
-        Elf64_Addr sh_addr;       /* Section virtual addr at execution */
-        Elf64_Off sh_offset;      /* Section file offset */
-        Elf64_Xword sh_size;      /* Size of section in bytes */
-        Elf64_Word sh_link;       /* Index of another section */
-        Elf64_Word sh_info;       /* Additional section information */
-        Elf64_Xword sh_addralign; /* Section alignment */
-        Elf64_Xword sh_entsize;   /* Entry size if section holds table */
-} Elf64_Shdr;
-
 struct file_off_control {
         u_int64_t offset;
         int n;
@@ -191,7 +51,7 @@ struct file_off_control {
 /* 0x3f is reserved */
 static struct option long_options[] = {
         { "file", 1, 0, GETOPT_CUSTOM_FILE },
-        { "header", 1, 0, GETOPT_CUSTOM_HEADER },
+        { "header", 0, 0, GETOPT_CUSTOM_HEADER },
         { "ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER },
         { "header-struct", 0, 0, GETOPT_CUSTOM_HEADER_STRUCT },
         { "header-ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT },
@@ -224,6 +84,629 @@ __cold static void __debug_config(struct config *config) {
                config->show_program_header);
 }
 
+void __print_process_elf_type(unsigned short e_type) {
+        switch (e_type) {
+        case ET_NONE:
+                printf("No file type (ET_NONE)");
+                break;
+        case ET_REL:
+                printf("Relocatable file (ET_REL)");
+                break;
+        case ET_EXEC:
+                printf("Executable file (ET_EXEC)");
+                break;
+        case ET_DYN:
+                printf("Shared object file (ET_DYN)");
+                break;
+        case ET_CORE:
+                printf("Core file (ET_CORE)");
+                break;
+        case ET_NUM:
+                printf("Number of defined types (ET_NUM) - This should not be "
+                       "a real file type.");
+                break;
+        case ET_LOOS:
+                printf("OS-specific range start (ET_LOOS)");
+                break;
+        case ET_HIOS:
+                printf("OS-specific range end (ET_HIOS)");
+                break;
+        case ET_LOPROC:
+                printf("Processor-specific range start (ET_LOPROC)");
+                break;
+        case ET_HIPROC:
+                printf("Processor-specific range end (ET_HIPROC)");
+                break;
+        default:
+                // For OS-specific or Processor-specific types not explicitly
+                // listed, or unknown types within these ranges.
+                if (e_type >= ET_LOOS && e_type <= ET_HIOS) {
+                        printf("OS-specific type (0x%hx, within range "
+                               "0x%hx-0x%hx)",
+                               e_type, ET_LOOS, ET_HIOS);
+                } else if (e_type >= ET_LOPROC && e_type <= ET_HIPROC) {
+                        printf("Processor-specific type (0x%hx, within range "
+                               "0x%hx-0x%hx)",
+                               e_type, ET_LOPROC, ET_HIPROC);
+                } else {
+                        printf("Unknown or reserved type (0x%hx)", e_type);
+                }
+                break;
+        }
+}
+
+void __print_machine(int em) {
+        switch (em) {
+        case 0:
+                printf("No machine");
+                break;
+        case 1:
+                printf("AT&T WE 32100");
+                break;
+        case 2:
+                printf("SUN SPARC");
+                break;
+        case 3:
+                printf("Intel 80386");
+                break;
+        case 4:
+                printf("Motorola m68k family");
+                break;
+        case 5:
+                printf("Motorola m88k family");
+                break;
+        case 6:
+                printf("Intel MCU");
+                break;
+        case 7:
+                printf("Intel 80860");
+                break;
+        case 8:
+                printf("MIPS R3000 big-endian");
+                break;
+        case 9:
+                printf("IBM System/370");
+                break;
+        case 10:
+                printf("MIPS R3000 little-endian");
+                break;
+        case 15:
+                printf("HPPA");
+                break;
+        case 17:
+                printf("Fujitsu VPP500");
+                break;
+        case 18:
+                printf("Sun's \"v8plus\"");
+                break;
+        case 19:
+                printf("Intel 80960");
+                break;
+        case 20:
+                printf("PowerPC");
+                break;
+        case 21:
+                printf("PowerPC 64-bit");
+                break;
+        case 22:
+                printf("IBM S390");
+                break;
+        case 23:
+                printf("IBM SPU/SPC");
+                break;
+        case 36:
+                printf("NEC V800 series");
+                break;
+        case 37:
+                printf("Fujitsu FR20");
+                break;
+        case 38:
+                printf("TRW RH-32");
+                break;
+        case 39:
+                printf("Motorola RCE");
+                break;
+        case 40:
+                printf("ARM");
+                break;
+        case 41:
+                printf("Digital Alpha");
+                break;
+        case 42:
+                printf("Hitachi SH");
+                break;
+        case 43:
+                printf("SPARC v9 64-bit");
+                break;
+        case 44:
+                printf("Siemens Tricore");
+                break;
+        case 45:
+                printf("Argonaut RISC Core");
+                break;
+        case 46:
+                printf("Hitachi H8/300");
+                break;
+        case 47:
+                printf("Hitachi H8/300H");
+                break;
+        case 48:
+                printf("Hitachi H8S");
+                break;
+        case 49:
+                printf("Hitachi H8/500");
+                break;
+        case 50:
+                printf("Intel Merced");
+                break;
+        case 51:
+                printf("Stanford MIPS-X");
+                break;
+        case 52:
+                printf("Motorola Coldfire");
+                break;
+        case 53:
+                printf("Motorola M68HC12");
+                break;
+        case 54:
+                printf("Fujitsu MMA Multimedia Accelerator");
+                break;
+        case 55:
+                printf("Siemens PCP");
+                break;
+        case 56:
+                printf("Sony nCPU embedded RISC");
+                break;
+        case 57:
+                printf("Denso NDR1 microprocessor");
+                break;
+        case 58:
+                printf("Motorola Start*Core processor");
+                break;
+        case 59:
+                printf("Toyota ME16 processor");
+                break;
+        case 60:
+                printf("STMicroelectronic ST100 processor");
+                break;
+        case 61:
+                printf("Advanced Logic Corp. Tinyj emb.fam");
+                break;
+        case 62:
+                printf("AMD x86-64 architecture");
+                break;
+        case 63:
+                printf("Sony DSP Processor");
+                break;
+        case 64:
+                printf("Digital PDP-10");
+                break;
+        case 65:
+                printf("Digital PDP-11");
+                break;
+        case 66:
+                printf("Siemens FX66 microcontroller");
+                break;
+        case 67:
+                printf("STMicroelectronics ST9+ 8/16 mc");
+                break;
+        case 68:
+                printf("STmicroelectronics ST7 8 bit mc");
+                break;
+        case 69:
+                printf("Motorola MC68HC16 microcontroller");
+                break;
+        case 70:
+                printf("Motorola MC68HC11 microcontroller");
+                break;
+        case 71:
+                printf("Motorola MC68HC08 microcontroller");
+                break;
+        case 72:
+                printf("Motorola MC68HC05 microcontroller");
+                break;
+        case 73:
+                printf("Silicon Graphics SVx");
+                break;
+        case 74:
+                printf("STMicroelectronics ST19 8 bit mc");
+                break;
+        case 75:
+                printf("Digital VAX");
+                break;
+        case 76:
+                printf("Axis Communications 32-bit emb.proc");
+                break;
+        case 77:
+                printf("Infineon Technologies 32-bit emb.proc");
+                break;
+        case 78:
+                printf("Element 14 64-bit DSP Processor");
+                break;
+        case 79:
+                printf("LSI Logic 16-bit DSP Processor");
+                break;
+        case 80:
+                printf("Donald Knuth's educational 64-bit proc");
+                break;
+        case 81:
+                printf("Harvard University machine-independent object files");
+                break;
+        case 82:
+                printf("SiTera Prism");
+                break;
+        case 83:
+                printf("Atmel AVR 8-bit microcontroller");
+                break;
+        case 84:
+                printf("Fujitsu FR30");
+                break;
+        case 85:
+                printf("Mitsubishi D10V");
+                break;
+        case 86:
+                printf("Mitsubishi D30V");
+                break;
+        case 87:
+                printf("NEC v850");
+                break;
+        case 88:
+                printf("Mitsubishi M32R");
+                break;
+        case 89:
+                printf("Matsushita MN10300");
+                break;
+        case 90:
+                printf("Matsushita MN10200");
+                break;
+        case 91:
+                printf("picoJava");
+                break;
+        case 92:
+                printf("OpenRISC 32-bit embedded processor");
+                break;
+        case 93:
+                printf("ARC International ARCompact");
+                break;
+        case 94:
+                printf("Tensilica Xtensa Architecture");
+                break;
+        case 95:
+                printf("Alphamosaic VideoCore");
+                break;
+        case 96:
+                printf("Thompson Multimedia General Purpose Proc");
+                break;
+        case 97:
+                printf("National Semi. 32000");
+                break;
+        case 98:
+                printf("Tenor Network TPC");
+                break;
+        case 99:
+                printf("Trebia SNP 1000");
+                break;
+        case 100:
+                printf("STMicroelectronics ST200");
+                break;
+        case 101:
+                printf("Ubicom IP2xxx");
+                break;
+        case 102:
+                printf("MAX processor");
+                break;
+        case 103:
+                printf("National Semi. CompactRISC");
+                break;
+        case 104:
+                printf("Fujitsu F2MC16");
+                break;
+        case 105:
+                printf("Texas Instruments msp430");
+                break;
+        case 106:
+                printf("Analog Devices Blackfin DSP");
+                break;
+        case 107:
+                printf("Seiko Epson S1C33 family");
+                break;
+        case 108:
+                printf("Sharp embedded microprocessor");
+                break;
+        case 109:
+                printf("Arca RISC");
+                break;
+        case 110:
+                printf("PKU-Unity & MPRC Peking Uni. mc series");
+                break;
+        case 111:
+                printf("eXcess configurable cpu");
+                break;
+        case 112:
+                printf("Icera Semi. Deep Execution Processor");
+                break;
+        case 113:
+                printf("Altera Nios II");
+                break;
+        case 114:
+                printf("National Semi. CompactRISC CRX");
+                break;
+        case 115:
+                printf("Motorola XGATE");
+                break;
+        case 116:
+                printf("Infineon C16x/XC16x");
+                break;
+        case 117:
+                printf("Renesas M16C");
+                break;
+        case 118:
+                printf("Microchip Technology dsPIC30F");
+                break;
+        case 119:
+                printf("Freescale Communication Engine RISC");
+                break;
+        case 120:
+                printf("Renesas M32C");
+                break;
+        case 131:
+                printf("Altium TSK3000");
+                break;
+        case 132:
+                printf("Freescale RS08");
+                break;
+        case 133:
+                printf("Analog Devices SHARC family");
+                break;
+        case 134:
+                printf("Cyan Technology eCOG2");
+                break;
+        case 135:
+                printf("Sunplus S+core7 RISC");
+                break;
+        case 136:
+                printf("New Japan Radio (NJR) 24-bit DSP");
+                break;
+        case 137:
+                printf("Broadcom VideoCore III");
+                break;
+        case 138:
+                printf("RISC for Lattice FPGA");
+                break;
+        case 139:
+                printf("Seiko Epson C17");
+                break;
+        case 140:
+                printf("Texas Instruments TMS320C6000 DSP");
+                break;
+        case 141:
+                printf("Texas Instruments TMS320C2000 DSP");
+                break;
+        case 142:
+                printf("Texas Instruments TMS320C55x DSP");
+                break;
+        case 143:
+                printf("Texas Instruments App. Specific RISC");
+                break;
+        case 144:
+                printf("Texas Instruments Prog. Realtime Unit");
+                break;
+        case 160:
+                printf("STMicroelectronics 64bit VLIW DSP");
+                break;
+        case 161:
+                printf("Cypress M8C");
+                break;
+        case 162:
+                printf("Renesas R32C");
+                break;
+        case 163:
+                printf("NXP Semi. TriMedia");
+                break;
+        case 164:
+                printf("QUALCOMM DSP6");
+                break;
+        case 165:
+                printf("Intel 8051 and variants");
+                break;
+        case 166:
+                printf("STMicroelectronics STxP7x");
+                break;
+        case 167:
+                printf("Andes Tech. compact code emb. RISC");
+                break;
+        case 168:
+                printf("Cyan Technology eCOG1X");
+                break;
+        case 169:
+                printf("Dallas Semi. MAXQ30 mc");
+                break;
+        case 170:
+                printf("New Japan Radio (NJR) 16-bit DSP");
+                break;
+        case 171:
+                printf("M2000 Reconfigurable RISC");
+                break;
+        case 172:
+                printf("Cray NV2 vector architecture");
+                break;
+        case 173:
+                printf("Renesas RX");
+                break;
+        case 174:
+                printf("Imagination Tech. META");
+                break;
+        case 175:
+                printf("MCST Elbrus");
+                break;
+        case 176:
+                printf("Cyan Technology eCOG16");
+                break;
+        case 177:
+                printf("National Semi. CompactRISC CR16");
+                break;
+        case 178:
+                printf("Freescale Extended Time Processing Unit");
+                break;
+        case 179:
+                printf("Infineon Tech. SLE9X");
+                break;
+        case 180:
+                printf("Intel L10M");
+                break;
+        case 181:
+                printf("Intel K10M");
+                break;
+        case 183:
+                printf("ARM AARCH64");
+                break;
+        case 185:
+                printf("Amtel 32-bit microprocessor");
+                break;
+        case 186:
+                printf("STMicroelectronics STM8");
+                break;
+        case 187:
+                printf("Tilera TILE64");
+                break;
+        case 188:
+                printf("Tilera TILEPro");
+                break;
+        case 189:
+                printf("Xilinx MicroBlaze");
+                break;
+        case 190:
+                printf("NVIDIA CUDA");
+                break;
+        case 191:
+                printf("Tilera TILE-Gx");
+                break;
+        case 192:
+                printf("CloudShield");
+                break;
+        case 193:
+                printf("KIPO-KAIST Core-A 1st gen.");
+                break;
+        case 194:
+                printf("KIPO-KAIST Core-A 2nd gen.");
+                break;
+        case 195:
+                printf("Synopsys ARCv2 ISA.");
+                break;
+        case 196:
+                printf("Open8 RISC");
+                break;
+        case 197:
+                printf("Renesas RL78");
+                break;
+        case 198:
+                printf("Broadcom VideoCore V");
+                break;
+        case 199:
+                printf("Renesas 78KOR");
+                break;
+        case 200:
+                printf("Freescale 56800EX DSC");
+                break;
+        case 201:
+                printf("Beyond BA1");
+                break;
+        case 202:
+                printf("Beyond BA2");
+                break;
+        case 203:
+                printf("XMOS xCORE");
+                break;
+        case 204:
+                printf("Microchip 8-bit PIC(r)");
+                break;
+        case 205:
+                printf("Intel Graphics Technology");
+                break;
+        case 210:
+                printf("KM211 KM32");
+                break;
+        case 211:
+                printf("KM211 KMX32");
+                break;
+        case 212:
+                printf("KM211 KMX16");
+                break;
+        case 213:
+                printf("KM211 KMX8");
+                break;
+        case 214:
+                printf("KM211 KVARC");
+                break;
+        case 215:
+                printf("Paneve CDP");
+                break;
+        case 216:
+                printf("Cognitive Smart Memory Processor");
+                break;
+        case 217:
+                printf("Bluechip CoolEngine");
+                break;
+        case 218:
+                printf("Nanoradio Optimized RISC");
+                break;
+        case 219:
+                printf("CSR Kalimba");
+                break;
+        case 220:
+                printf("Zilog Z80");
+                break;
+        case 221:
+                printf("Controls and Data Services VISIUMcore");
+                break;
+        case 222:
+                printf("FTDI Chip FT32");
+                break;
+        case 223:
+                printf("Moxie processor");
+                break;
+        case 224:
+                printf("AMD GPU");
+                break;
+        case 243:
+                printf("RISC-V");
+                break;
+        case 247:
+                printf("Linux BPF -- in-kernel virtual machine");
+                break;
+        case 252:
+                printf("C-SKY");
+                break;
+        case 258:
+                printf("LoongArch");
+                break;
+        default:
+                printf("Unknown machine");
+                break;
+        }
+}
+
+void __print_elf_version(unsigned int elf_version) {
+        switch (elf_version) {
+        case EV_NONE:
+                printf("ELF Version: EV_NONE (Invalid ELF version)\n");
+                break;
+        case EV_CURRENT:
+                printf("ELF Version: EV_CURRENT (Current version)\n");
+                break;
+        case EV_NUM:
+                // EV_NUM is typically used to indicate the count of valid
+                // versions, not a valid version itself.
+                printf("ELF Version: EV_NUM (Number of defined versions - not "
+                       "a valid version identifier)\n");
+                break;
+        default:
+                printf("ELF Version: Unknown or reserved version (0x%x)\n",
+                       elf_version);
+                break;
+        }
+}
+
 __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
         if (config->show_header_struct == 1) {
                 printf("{\n");
@@ -247,38 +730,43 @@ __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
 
                 return;
         } else if (config->show_header == 1) {
-
                 printf("ELF64 class\n");
-                printf("\tType:                             %u\n",
-                       ehdr->e_type);
-                printf("\tMachine:                          %u\n",
-                       ehdr->e_machine);
-                printf("\tVersion:                          0x%x\n",
-                       ehdr->e_version);
-                printf("\tEntry point address:              0x%016" PRIx64 "\n",
+
+                printf("\tType\t\t\t\t");
+                __print_process_elf_type(ehdr->e_type);
+                printf("\n");
+
+                printf("\tMachine\t\t\t\t");
+                __print_machine(ehdr->e_machine);
+                printf("\n");
+
+                printf("\tVersion\t\t\t\t");
+                __print_elf_version(ehdr->e_version);
+
+                printf("\tEntry point address\t\t0x%016" PRIx64 "\n",
                        ehdr->e_entry);
-                printf("\tStart of program headers:         %" PRIu64
+                printf("\tStart of program headers\t%" PRIu64
                        " (bytes into file)\n",
                        ehdr->e_phoff);
-                printf("\tStart of section headers:         %" PRIu64
+                printf("\tStart of section headers\t%" PRIu64
                        " (bytes into file)\n",
                        ehdr->e_shoff);
-                printf("\tFlags:                            0x%x\n",
+                printf("\tFlags\t\t\t\t0x%x\n",
                        ehdr->e_flags);
-                printf("\tSize of this header:              %" PRIu16
+                printf("\tSize of this header\t\t%" PRIu16
                        " (bytes)\n",
                        ehdr->e_ehsize);
-                printf("\tSize of program headers:          %" PRIu16
+                printf("\tSize of program headers\t\t%" PRIu16
                        " (bytes)\n",
                        ehdr->e_phentsize);
-                printf("\tNumber of program headers:        %" PRIu16 "\n",
+                printf("\tNumber of program headers\t%" PRIu16 "\n",
                        ehdr->e_phnum);
-                printf("\tSize of section headers:          %" PRIu16
+                printf("\tSize of section headers\t\t%" PRIu16
                        " (bytes)\n",
                        ehdr->e_shentsize);
-                printf("\tNumber of section headers:        %" PRIu16 "\n",
+                printf("\tNumber of section headers\t%" PRIu16 "\n",
                        ehdr->e_shnum);
-                printf("\tSection header string table index:%" PRIu16 "\n",
+                printf("\tSection header string table idx\t%" PRIu16 "\n",
                        ehdr->e_shstrndx);
         } else {
                 // NOP
@@ -308,39 +796,44 @@ __cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
 
                 return;
         } else if (config->show_header) {
-
                 printf("ELF32 class\n");
-                printf("\tType:                             %u\n",
-                       ehdr->e_type);
-                printf("\tMachine:                          %u\n",
-                       ehdr->e_machine);
-                printf("\tVersion:                          0x%x\n",
-                       ehdr->e_version);
-                printf("\tEntry point address:              0x%016" PRIx32 "\n",
-                       ehdr->e_entry);
-                printf("\tStart of program headers:         %" PRIu32
-                       " (bytes into file)\n",
-                       ehdr->e_phoff);
-                printf("\tStart of section headers:         %" PRIu32
-                       " (bytes into file)\n",
-                       ehdr->e_shoff);
-                printf("\tFlags:                            0x%x\n",
-                       ehdr->e_flags);
-                printf("\tSize of this header:              %" PRIu16
-                       " (bytes)\n",
-                       ehdr->e_ehsize);
-                printf("\tSize of program headers:          %" PRIu16
-                       " (bytes)\n",
-                       ehdr->e_phentsize);
-                printf("\tNumber of program headers:        %" PRIu16 "\n",
-                       ehdr->e_phnum);
-                printf("\tSize of section headers:          %" PRIu16
-                       " (bytes)\n",
-                       ehdr->e_shentsize);
-                printf("\tNumber of section headers:        %" PRIu16 "\n",
-                       ehdr->e_shnum);
-                printf("\tSection header string table index:%" PRIu16 "\n",
-                       ehdr->e_shstrndx);
+
+                printf("\tType\t\t\t\t");
+                __print_process_elf_type(ehdr->e_type);
+                printf("\n");
+
+                printf("\tMachine\t\t\t\t");
+                __print_machine(ehdr->e_machine);
+                printf("\n");
+
+                printf("\tVersion\t\t\t\t");
+                __print_elf_version(ehdr->e_version);
+
+                printf("\tEntry point address\t\t0x%016" PRIx32 "\n",
+                           ehdr->e_entry);
+                printf("\tStart of program headers\t%" PRIu32
+                           " (bytes into file)\n",
+                           ehdr->e_phoff);
+                printf("\tStart of section headers\t%" PRIu32
+                           " (bytes into file)\n",
+                           ehdr->e_shoff);
+                printf("\tFlags\t\t\t\t0x%x\n",
+                           ehdr->e_flags);
+                printf("\tSize of this header\t\t%" PRIu16
+                           " (bytes)\n",
+                           ehdr->e_ehsize);
+                printf("\tSize of program headers\t\t%" PRIu16
+                           " (bytes)\n",
+                           ehdr->e_phentsize);
+                printf("\tNumber of program headers\t%" PRIu16 "\n",
+                           ehdr->e_phnum);
+                printf("\tSize of section headers\t\t%" PRIu16
+                           " (bytes)\n",
+                           ehdr->e_shentsize);
+                printf("\tNumber of section headers\t%" PRIu16 "\n",
+                           ehdr->e_shnum);
+                printf("\tSection header string table idx\t%" PRIu16 "\n",
+                           ehdr->e_shstrndx);
         } else {
                 // NOP
         }
@@ -488,7 +981,6 @@ __cold static void __print_elf64_ph_table(Elf64_Phdr *data,
                 /* print file size */
                 PRINT_PRETTYF("0x%0lx", data[i].p_align, 18, 19);
 
-                
                 // char predicted_max_int[20];
                 // sprintf(predicted_max_int, "%lu", data[i].p_filesz);
                 // PRINT_PRETTYF("%s", predicted_max_int,
@@ -611,31 +1103,7 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                         break;
 
                 case GETOPT_CUSTOM_HEADER:
-                        conv_optarg = strtoul(optarg, NULL, 0);
-
-                        if (conv_optarg == EINVAL) {
-                                fprintf(stderr, "EINVAL: aboorting strtoul()");
-                                break;
-                        }
-
-                        if (conv_optarg == ERANGE) {
-                                fprintf(stderr,
-                                        "ERANGE: strtoul() return out-of-range "
-                                        "integer, use 1 for true, or 0 for "
-                                        "false instead");
-                                break;
-                        }
-
-                        if (conv_optarg > 0xFF ||
-                            conv_optarg != 0 && conv_optarg != 1) {
-                                fprintf(stderr,
-                                        "ELF option \"%ld\" option is illegal, "
-                                        "use 1 or 0, defaulting 0",
-                                        conv_optarg);
-                                config->show_header = 0;
-                        } else {
-                                config->show_header = conv_optarg;
-                        }
+                        config->show_header = 1;
                         break;
 
                 case GETOPT_CUSTOM_HEADER_STRUCT:
