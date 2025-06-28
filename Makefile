@@ -5,3 +5,14 @@ elf64: elf64_hexdump.c hexdump.h
 
 m32: m32.c
 	${CC} m32.c -o m32 -g
+
+test_avr_gcc: ./repro/avr.c
+	avr-gcc ./repro/avr.c -o avr
+
+test_x86: ./repro/avr.c
+	${CC} ./repro/m32.c -o m32 -m32
+
+clean:
+	rm -f avr 
+	rm -f m32
+	rm -f elf64

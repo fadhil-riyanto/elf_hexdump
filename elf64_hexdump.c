@@ -230,7 +230,7 @@ __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
                 printf("  e_ident = ");
                 VT_SIMPLE_HEXDUMP(ehdr->e_ident, 16);
                 printf("\n");
-                printf("  e_type = %u,\n", ehdr->e_type);
+                printf("  e_type = %hu,\n", ehdr->e_type);
                 printf("  e_machine = %u,\n", ehdr->e_machine);
                 printf("  e_version = 0x%x,\n", ehdr->e_version);
                 printf("  e_entry = 0x%016" PRIx64 "\n", ehdr->e_entry);
