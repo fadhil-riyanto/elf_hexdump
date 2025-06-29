@@ -9,6 +9,7 @@
                                                 */
 #define GETOPT_CUSTOM_HEXDUMP                   0x04 /* hexdump all */
 #define GETOPT_CUSTOM_PROGRAM_HEADER            0x05 /* dump program header (pretty table) */
-#define GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT     0x06 /* dump program header (kernel struct)*/
+#define GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT     0x06 /* [unused right now] dump program header (kernel struct)*/
+#define GETOPT_CUSTOM_SECTION_HEADER            0x07 /* print section header lists */
 
 #endif /* GETOPT_CUSTOM_H */

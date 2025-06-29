@@ -55,6 +55,7 @@ static struct option long_options[] = {
         { "ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER },
         { "header-struct", 0, 0, GETOPT_CUSTOM_HEADER_STRUCT },
         { "header-ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT },
+        { "sh", 0, 0, GETOPT_CUSTOM_SECTION_HEADER },
         { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP },
         NULL
 };
@@ -66,6 +67,7 @@ struct config {
         u_int8_t hexdump;
         u_int8_t show_program_header; /* table */
         u_int8_t show_program_header_struct;
+        u_int8_t show_section_header;
 
         /*
          * add more in future
@@ -831,7 +833,7 @@ __cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
         }
 }
 
-__cold static void __print_table_header() {
+__cold static void __print_ph_table_header() {
         PRINT_PRETTY_PAD_COUNT("type", 4, 16);
         PRINT_PRETTY_PAD_COUNT("flags", 5, 9);
         PRINT_PRETTY_PAD_COUNT("offset", 6, 19);
@@ -857,6 +859,29 @@ __cold static void __print_table_header() {
         //        "filesz\t\t"
         //        "flags\t\t"
         //        "align\n\n");
+}
+
+
+__cold static void __print_sh_table_header() {
+        PRINT_PRETTY_PAD_COUNT("name", 4, 16);
+        PRINT_PRETTY_PAD_COUNT("types", 5, 9);
+        PRINT_PRETTY_PAD_COUNT("flags", 1, 3);
+        PRINT_PRETTY_PAD_COUNT("virtual addr", 12, 19);
+        PRINT_PRETTY_PAD_COUNT("offset", 8, 19);
+        PRINT_PRETTY_PAD_COUNT("sh size", 7, 19);
+        PRINT_PRETTY_PAD_COUNT("sh link", 7, 19);
+        PRINT_PRETTY_PAD_COUNT("info", 1, 4);
+        PRINT_PRETTY_PAD_COUNT("align", 2, 3);
+        PRINT_PRETTY_PAD_COUNT("entry size", 10, 19);
+
+        printf("\n");
+
+        for (int i = 0; i < __init_print_pad_count; i++) {
+                printf("-");
+        }
+
+        PRETTY_PRINT_PAD_COUNT_RESET();
+        printf("\n");
 }
 
 __cold static void __print_p_type(Elf32_Word p_type) {
@@ -948,7 +973,7 @@ __cold static void __print_p_flags(Elf64_Word p_flags) {
 /* ELF64 PROGRAM HEADER */
 __cold static void __print_elf64_ph_table(Elf64_Phdr *data,
                                           Elf64_Half e_phnum) {
-        __print_table_header();
+        __print_ph_table_header();
 
         for (int i = 0; i < e_phnum; i++) {
                 __print_p_type(data[i].p_type);
@@ -986,7 +1011,7 @@ __cold static void __print_elf64_ph_table(Elf64_Phdr *data,
 
 __cold static void __print_elf32_ph_table(Elf32_Phdr *data,
                                           Elf64_Half e_phnum) {
-        __print_table_header();
+        __print_ph_table_header();
 
         for (int i = 0; i < e_phnum; i++) {
                 __print_p_type(data[i].p_type);
@@ -1017,7 +1042,11 @@ __cold static void __print_elf32_ph_table(Elf32_Phdr *data,
         }
 }
 
-static int __open_file(const char *filename) {
+__cold static void __print_elf64_sh_table(Elf64_Shdr *data, Elf64_Half e_shnum) {
+        __print_sh_table_header();
+}
+
+    static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
 
         if (fd < 0) {
@@ -1050,6 +1079,10 @@ __cold static enum ELF_arch_type read_elf_magic(int fd) {
         }
 }
 
+/*
+ * Read ELF header
+ * mode: x64
+ */
 __cold static void interpret_elf64_hdr(int fd, Elf64_Ehdr *preallocated_hdr) {
         u_int8_t *buf = (u_int8_t *)malloc(sizeof(Elf64_Ehdr));
 
@@ -1065,6 +1098,10 @@ __cold static void interpret_elf64_hdr(int fd, Elf64_Ehdr *preallocated_hdr) {
         free(buf);
 }
 
+/*
+ * Read ELF header
+ * mode: x86
+ */
 __cold static void interpret_elf32_hdr(int fd, Elf32_Ehdr *preallocated_hdr) {
         u_int8_t *buf = (u_int8_t *)malloc(sizeof(Elf32_Ehdr));
 
@@ -1080,6 +1117,10 @@ __cold static void interpret_elf32_hdr(int fd, Elf32_Ehdr *preallocated_hdr) {
         free(buf);
 }
 
+/*
+ * Read ELF program header
+ * mode: x64
+ */
 __cold static Elf64_Phdr *interpret_elf64_program_header(int fd,
                                                          Elf64_Off elf_start,
                                                          Elf64_Half e_phnum) {
@@ -1106,6 +1147,10 @@ __cold static Elf64_Phdr *interpret_elf64_program_header(int fd,
         return program_header_section;
 }
 
+/*
+ * Read ELF program header
+ * mode: x86
+ */
 __cold static Elf32_Phdr *interpret_elf32_program_header(int fd,
                                                          Elf32_Off elf_start,
                                                          Elf32_Half e_phnum) {
@@ -1131,6 +1176,42 @@ __cold static Elf32_Phdr *interpret_elf32_program_header(int fd,
 
         return program_header_section;
 }
+
+/*
+ * Read ELF section header
+ * mode: x64
+ */
+__cold static Elf64_Shdr *
+interpret_elf64_section_header(int fd, Elf64_Off e_shoff, Elf64_Half e_shnum) {
+        u_int8_t *buf_each = (u_int8_t *)malloc(sizeof(Elf64_Shdr));
+        Elf64_Shdr *section_header_section =
+            (Elf64_Shdr *)malloc(sizeof(Elf64_Shdr) * e_shnum);
+
+        for (int i = 0; i < e_shnum; i++) {
+                lseek(fd, e_shoff + (sizeof(Elf64_Shdr) * i), SEEK_SET);
+
+                int ret = read(fd, buf_each, sizeof(Elf64_Shdr));
+                if (ret < 0) {
+                        perror("read() on interpret_elf32_program_header");
+                } else {
+                        memcpy(&section_header_section[i], buf_each,
+                               sizeof(Elf64_Shdr));
+                        memset(buf_each, 0, sizeof(Elf64_Shdr));
+                }
+        }
+        free(buf_each);
+
+        return section_header_section;
+}
+
+/*
+ * Read ELF section header
+ * mode: x86
+ *
+ * reserved
+ */
+__cold static Elf32_Shdr *
+interpret_elf32_section_header(int fd, Elf32_Off e_shoff, Elf32_Half e_shnum) {}
 
 static int parse_opt(int argc, char *argv[], struct config *config) {
         int retval = 0;
@@ -1168,6 +1249,10 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
 
                 case GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT:
                         config->show_program_header_struct = 1;
+                        break;
+
+                case GETOPT_CUSTOM_SECTION_HEADER:
+                        config->show_section_header = 1;
                         break;
 
                 case GETOPT_CUSTOM_HEXDUMP:
@@ -1231,44 +1316,55 @@ int main(int argc, char **argv) {
         int ret = parse_opt(argc, argv, &config);
         // __debug_config(&config);
 
-        ret = __open_file(config.filename);
-        if (ret < 0) {
+        int fd = __open_file(config.filename);
+        if (fd < 0) {
                 return -1;
                 // VT_HEXDUMP(ehdr, sizeof(Elf64_Ehdr));
                 // asm volatile("nop");
                 // printf(const char *restrict format, ...)
         }
 
-        int elf_arch_type = read_elf_magic(ret);
+        int elf_arch_type = read_elf_magic(fd);
 
         if (elf_arch_type == ELF64) {
                 Elf64_Ehdr *ehdr = (Elf64_Ehdr *)malloc(sizeof(Elf64_Ehdr));
-                interpret_elf64_hdr(ret, ehdr);
+                interpret_elf64_hdr(fd, ehdr);
                 __print_elf64_hdr(ehdr, &config);
-                free(ehdr);
 
                 if (config.show_program_header) {
                         Elf64_Phdr *phdr_table = interpret_elf64_program_header(
-                            ret, ehdr->e_phoff, ehdr->e_phnum);
+                            fd, ehdr->e_phoff, ehdr->e_phnum);
 
                         __print_elf64_ph_table(phdr_table, ehdr->e_phnum);
                         free(phdr_table);
                 }
+
+                if (config.show_section_header) {
+                        Elf64_Shdr *shdr_table = interpret_elf64_section_header(
+                            fd, ehdr->e_shoff, ehdr->e_shnum);
+
+                        // VT_HEXDUMP(shdr_table, sizeof(Elf64_Shdr) * 1);
+                        __print_elf64_sh_table(shdr_table, ehdr->e_shnum);
+
+                        free(shdr_table);
+                }
+
+                free(ehdr);
         }
 
         if (elf_arch_type == ELF32) {
                 Elf32_Ehdr *ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr));
-                interpret_elf32_hdr(ret, ehdr);
+                interpret_elf32_hdr(fd, ehdr);
                 __print_elf32_hdr(ehdr, &config);
-                free(ehdr);
 
                 if (config.show_program_header) {
                         Elf32_Phdr *phdr_table = interpret_elf32_program_header(
-                            ret, ehdr->e_phoff, ehdr->e_phnum);
+                            fd, ehdr->e_phoff, ehdr->e_phnum);
 
                         __print_elf32_ph_table(phdr_table, ehdr->e_phnum);
                         free(phdr_table);
                 }
+                free(ehdr);
         }
 
         if (elf_arch_type == NOT_ELF) {
@@ -1283,5 +1379,7 @@ int main(int argc, char **argv) {
         if (config.hexdump) {
                 _start_hexdump(ret);
         }
+
+        close(fd);
         // __debug_config(&config);
 }
