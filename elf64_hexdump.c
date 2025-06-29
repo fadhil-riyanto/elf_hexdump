@@ -751,18 +751,14 @@ __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
                 printf("\tStart of section headers\t%" PRIu64
                        " (bytes into file)\n",
                        ehdr->e_shoff);
-                printf("\tFlags\t\t\t\t0x%x\n",
-                       ehdr->e_flags);
-                printf("\tSize of this header\t\t%" PRIu16
-                       " (bytes)\n",
+                printf("\tFlags\t\t\t\t0x%x\n", ehdr->e_flags);
+                printf("\tSize of this header\t\t%" PRIu16 " (bytes)\n",
                        ehdr->e_ehsize);
-                printf("\tSize of program headers\t\t%" PRIu16
-                       " (bytes)\n",
+                printf("\tSize of program headers\t\t%" PRIu16 " (bytes)\n",
                        ehdr->e_phentsize);
                 printf("\tNumber of program headers\t%" PRIu16 "\n",
                        ehdr->e_phnum);
-                printf("\tSize of section headers\t\t%" PRIu16
-                       " (bytes)\n",
+                printf("\tSize of section headers\t\t%" PRIu16 " (bytes)\n",
                        ehdr->e_shentsize);
                 printf("\tNumber of section headers\t%" PRIu16 "\n",
                        ehdr->e_shnum);
@@ -810,30 +806,26 @@ __cold static void __print_elf32_hdr(Elf32_Ehdr *ehdr, struct config *config) {
                 __print_elf_version(ehdr->e_version);
 
                 printf("\tEntry point address\t\t0x%016" PRIx32 "\n",
-                           ehdr->e_entry);
+                       ehdr->e_entry);
                 printf("\tStart of program headers\t%" PRIu32
-                           " (bytes into file)\n",
-                           ehdr->e_phoff);
+                       " (bytes into file)\n",
+                       ehdr->e_phoff);
                 printf("\tStart of section headers\t%" PRIu32
-                           " (bytes into file)\n",
-                           ehdr->e_shoff);
-                printf("\tFlags\t\t\t\t0x%x\n",
-                           ehdr->e_flags);
-                printf("\tSize of this header\t\t%" PRIu16
-                           " (bytes)\n",
-                           ehdr->e_ehsize);
-                printf("\tSize of program headers\t\t%" PRIu16
-                           " (bytes)\n",
-                           ehdr->e_phentsize);
+                       " (bytes into file)\n",
+                       ehdr->e_shoff);
+                printf("\tFlags\t\t\t\t0x%x\n", ehdr->e_flags);
+                printf("\tSize of this header\t\t%" PRIu16 " (bytes)\n",
+                       ehdr->e_ehsize);
+                printf("\tSize of program headers\t\t%" PRIu16 " (bytes)\n",
+                       ehdr->e_phentsize);
                 printf("\tNumber of program headers\t%" PRIu16 "\n",
-                           ehdr->e_phnum);
-                printf("\tSize of section headers\t\t%" PRIu16
-                           " (bytes)\n",
-                           ehdr->e_shentsize);
+                       ehdr->e_phnum);
+                printf("\tSize of section headers\t\t%" PRIu16 " (bytes)\n",
+                       ehdr->e_shentsize);
                 printf("\tNumber of section headers\t%" PRIu16 "\n",
-                           ehdr->e_shnum);
+                       ehdr->e_shnum);
                 printf("\tSection header string table idx\t%" PRIu16 "\n",
-                           ehdr->e_shstrndx);
+                       ehdr->e_shstrndx);
         } else {
                 // NOP
         }
@@ -867,101 +859,102 @@ __cold static void __print_table_header() {
         //        "align\n\n");
 }
 
+__cold static void __print_p_type(Elf32_Word p_type) {
+        switch (p_type) {
+        case PT_NULL:
+                PRINT_PRETTY("NULL", strlen("NULL"), 16);
+                break;
+        case PT_LOAD:
+                PRINT_PRETTY("LOAD", strlen("LOAD"), 16);
+                break;
+        case PT_DYNAMIC:
+                PRINT_PRETTY("DYNAMIC", strlen("DYNAMIC"), 16);
+                break;
+        case PT_INTERP:
+                PRINT_PRETTY("INTERP", strlen("INTERP"), 16);
+                break;
+        case PT_NOTE:
+                PRINT_PRETTY("NOTE", strlen("NOTE"), 16);
+                break;
+        case PT_SHLIB:
+                PRINT_PRETTY("SHLIB", strlen("SHLIB"), 16);
+                break;
+        case PT_PHDR:
+                PRINT_PRETTY("PHDR", strlen("PHDR"), 16);
+                break;
+        case PT_TLS:
+                PRINT_PRETTY("TLS", strlen("TLS"), 16);
+                break;
+        case PT_NUM:
+                PRINT_PRETTY("NUM", strlen("NUM"), 16);
+                break;
+        case PT_GNU_EH_FRAME:
+                PRINT_PRETTY("GNU_EH_FRAME", strlen("GNU_EH_FRAME"), 16);
+                break;
+        case PT_GNU_STACK:
+                PRINT_PRETTY("GNU_STACK", strlen("GNU_STACK"), 16);
+                break;
+        case PT_GNU_RELRO:
+                PRINT_PRETTY("GNU_RELRO", strlen("GNU_RELRO"), 16);
+                break;
+        case PT_GNU_PROPERTY:
+                PRINT_PRETTY("GNU_PROPERTY", strlen("GNU_PROPERTY"), 16);
+                break;
+        case PT_GNU_SFRAME:
+                PRINT_PRETTY("GNU_SFRAME", strlen("GNU_SFRAME"), 16);
+                break;
+        case PT_SUNWBSS:
+                PRINT_PRETTY("LOSUNW/SUNWBSS", strlen("LOSUNW/SUNWBSS"), 16);
+                break;
+        case PT_SUNWSTACK:
+                PRINT_PRETTY("SUNWSTACK", strlen("SUNWSTACK"), 16);
+                break;
+        default:
+                if (p_type >= PT_LOOS && p_type <= PT_HIOS) {
+                        PRINT_PRETTY("OS_SPESIFIC", strlen("OS_SPESIFIC"), 16);
+                } else if (p_type >= PT_LOPROC && p_type <= PT_HIPROC) {
+                        PRINT_PRETTY("PROCESSOR_SPESIFIC",
+                                     strlen("PROCESSOR_SPESIFIC"), 16);
+                } else {
+                        PRINT_PRETTY("UNKNOWN", strlen("UNKNOWN"), 16);
+                }
+                break;
+        }
+}
+
+/* do not forget to cast Elf32_Word to Elf64_Word*/
+__cold static void __print_p_flags(Elf64_Word p_flags) {
+        if (p_flags == PF_X) {
+                PRINT_PRETTY("X", 1, 9);
+        } else if (p_flags == PF_W) {
+                PRINT_PRETTY("W", 1, 9);
+        } else if (p_flags == PF_R) {
+                PRINT_PRETTY("R", 1, 9);
+        } else if (p_flags == PF_MASKOS) {
+                PRINT_PRETTY("MASKOS", 6, 9);
+        } else if (p_flags == PF_MASKPROC) {
+                PRINT_PRETTY("MASKPROC", 7, 9);
+        } else if (p_flags == (PF_R | PF_W)) {
+                PRINT_PRETTY("RW", 2, 9);
+        } else if (p_flags == (PF_R | PF_X)) {
+                PRINT_PRETTY("RX", 2, 9);
+        } else if (p_flags == (PF_R | PF_X | PF_W)) {
+                PRINT_PRETTY("RXW", 3, 9);
+        } else {
+                PRINT_PRETTY("UNDEF", 5, 9);
+        }
+}
+
+/* ELF64 PROGRAM HEADER */
 __cold static void __print_elf64_ph_table(Elf64_Phdr *data,
                                           Elf64_Half e_phnum) {
         __print_table_header();
 
         for (int i = 0; i < e_phnum; i++) {
-                switch (data[i].p_type) {
-                case PT_NULL:
-                        PRINT_PRETTY("NULL", strlen("NULL"), 16);
-                        break;
-                case PT_LOAD:
-                        PRINT_PRETTY("LOAD", strlen("LOAD"), 16);
-                        break;
-                case PT_DYNAMIC:
-                        PRINT_PRETTY("DYNAMIC", strlen("DYNAMIC"), 16);
-                        break;
-                case PT_INTERP:
-                        PRINT_PRETTY("INTERP", strlen("INTERP"), 16);
-                        break;
-                case PT_NOTE:
-                        PRINT_PRETTY("NOTE", strlen("NOTE"), 16);
-                        break;
-                case PT_SHLIB:
-                        PRINT_PRETTY("SHLIB", strlen("SHLIB"), 16);
-                        break;
-                case PT_PHDR:
-                        PRINT_PRETTY("PHDR", strlen("PHDR"), 16);
-                        break;
-                case PT_TLS:
-                        PRINT_PRETTY("TLS", strlen("TLS"), 16);
-                        break;
-                case PT_NUM:
-                        PRINT_PRETTY("NUM", strlen("NUM"), 16);
-                        break;
-                case PT_GNU_EH_FRAME:
-                        PRINT_PRETTY("GNU_EH_FRAME", strlen("GNU_EH_FRAME"),
-                                     16);
-                        break;
-                case PT_GNU_STACK:
-                        PRINT_PRETTY("GNU_STACK", strlen("GNU_STACK"), 16);
-                        break;
-                case PT_GNU_RELRO:
-                        PRINT_PRETTY("GNU_RELRO", strlen("GNU_RELRO"), 16);
-                        break;
-                case PT_GNU_PROPERTY:
-                        PRINT_PRETTY("GNU_PROPERTY", strlen("GNU_PROPERTY"),
-                                     16);
-                        break;
-                case PT_GNU_SFRAME:
-                        PRINT_PRETTY("GNU_SFRAME", strlen("GNU_SFRAME"), 16);
-                        break;
-                case PT_SUNWBSS:
-                        PRINT_PRETTY("LOSUNW/SUNWBSS", strlen("LOSUNW/SUNWBSS"),
-                                     16);
-                        break;
-                case PT_SUNWSTACK:
-                        PRINT_PRETTY("SUNWSTACK", strlen("SUNWSTACK"), 16);
-                        break;
-                default:
-                        if (data->p_type >= PT_LOOS &&
-                            data->p_type <= PT_HIOS) {
-                                PRINT_PRETTY("OS_SPESIFIC",
-                                             strlen("OS_SPESIFIC"), 16);
-                        } else if (data->p_type >= PT_LOPROC &&
-                                   data->p_type <= PT_HIPROC) {
-                                PRINT_PRETTY("PROCESSOR_SPESIFIC",
-                                             strlen("PROCESSOR_SPESIFIC"), 16);
-                        } else {
-                                PRINT_PRETTY("UNKNOWN", strlen("UNKNOWN"), 16);
-                        }
-                        break;
-
-                        /* pad */
-                        // printf("\t\t");
-                }
+                __print_p_type(data[i].p_type);
 
                 /* print flags */
-                if (data[i].p_flags == PF_X) {
-                        PRINT_PRETTY("X", 1, 9);
-                } else if (data[i].p_flags == PF_W) {
-                        PRINT_PRETTY("W", 1, 9);
-                } else if (data[i].p_flags == PF_R) {
-                        PRINT_PRETTY("R", 1, 9);
-                } else if (data[i].p_flags == PF_MASKOS) {
-                        PRINT_PRETTY("MASKOS", 6, 9);
-                } else if (data[i].p_flags == PF_MASKPROC) {
-                        PRINT_PRETTY("MASKPROC", 7, 9);
-                } else if (data[i].p_flags == (PF_R | PF_W)) {
-                        PRINT_PRETTY("RW", 2, 9);
-                } else if (data[i].p_flags == (PF_R | PF_X)) {
-                        PRINT_PRETTY("RX", 2, 9);
-                } else if (data[i].p_flags == (PF_R | PF_X | PF_W)) {
-                        PRINT_PRETTY("RXW", 3, 9);
-                } else {
-                        PRINT_PRETTY("UNDEF", 5, 9);
-                }
+                __print_p_flags(data[i].p_flags);
 
                 // /* print offset */
                 PRINT_PRETTYF("0x%016lx", data[i].p_offset, 18, 19);
@@ -985,6 +978,39 @@ __cold static void __print_elf64_ph_table(Elf64_Phdr *data,
                 // sprintf(predicted_max_int, "%lu", data[i].p_filesz);
                 // PRINT_PRETTYF("%s", predicted_max_int,
                 //               strlen(predicted_max_int), 18);
+
+                /* end */
+                printf("\n");
+        }
+}
+
+__cold static void __print_elf32_ph_table(Elf32_Phdr *data,
+                                          Elf64_Half e_phnum) {
+        __print_table_header();
+
+        for (int i = 0; i < e_phnum; i++) {
+                __print_p_type(data[i].p_type);
+
+                /* print flags */
+                __print_p_flags(data[i].p_flags);
+
+                // /* print offset */
+                PRINT_PRETTYF("0x%016x", data[i].p_offset, 18, 19);
+
+                /* print vaddr */
+                PRINT_PRETTYF("0x%016x", data[i].p_vaddr, 18, 19);
+
+                /* print paddr */
+                PRINT_PRETTYF("0x%016x", data[i].p_paddr, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%016x", data[i].p_filesz, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%016x", data[i].p_memsz, 18, 19);
+
+                /* print file size */
+                PRINT_PRETTYF("0x%0x", data[i].p_align, 18, 19);
 
                 /* end */
                 printf("\n");
@@ -1073,6 +1099,32 @@ __cold static Elf64_Phdr *interpret_elf64_program_header(int fd,
                         memcpy(&program_header_section[i], buf_each,
                                sizeof(Elf64_Phdr));
                         memset(buf_each, 0, sizeof(Elf64_Phdr));
+                }
+        }
+        free(buf_each);
+
+        return program_header_section;
+}
+
+__cold static Elf32_Phdr *interpret_elf32_program_header(int fd,
+                                                         Elf32_Off elf_start,
+                                                         Elf32_Half e_phnum) {
+        /* alloc once, free at function exits */
+        u_int8_t *buf_each = (u_int8_t *)malloc(sizeof(Elf32_Phdr));
+
+        Elf32_Phdr *program_header_section =
+            (Elf32_Phdr *)malloc(sizeof(Elf32_Phdr) * e_phnum);
+
+        for (int i = 0; i < e_phnum; i++) {
+                lseek(fd, elf_start + (sizeof(Elf32_Phdr) * i), SEEK_SET);
+
+                int ret = read(fd, buf_each, sizeof(Elf32_Phdr));
+                if (ret < 0) {
+                        perror("read() on interpret_elf32_program_header");
+                } else {
+                        memcpy(&program_header_section[i], buf_each,
+                               sizeof(Elf32_Phdr));
+                        memset(buf_each, 0, sizeof(Elf32_Phdr));
                 }
         }
         free(buf_each);
@@ -1199,10 +1251,8 @@ int main(int argc, char **argv) {
                         Elf64_Phdr *phdr_table = interpret_elf64_program_header(
                             ret, ehdr->e_phoff, ehdr->e_phnum);
 
-                        // for (int i = 0; i < )
                         __print_elf64_ph_table(phdr_table, ehdr->e_phnum);
                         free(phdr_table);
-                        // VT_HEXDUMP(phdr_table, sizeof(Elf64_Phdr));
                 }
         }
 
@@ -1211,6 +1261,14 @@ int main(int argc, char **argv) {
                 interpret_elf32_hdr(ret, ehdr);
                 __print_elf32_hdr(ehdr, &config);
                 free(ehdr);
+
+                if (config.show_program_header) {
+                        Elf32_Phdr *phdr_table = interpret_elf32_program_header(
+                            ret, ehdr->e_phoff, ehdr->e_phnum);
+
+                        __print_elf32_ph_table(phdr_table, ehdr->e_phnum);
+                        free(phdr_table);
+                }
         }
 
         if (elf_arch_type == NOT_ELF) {
