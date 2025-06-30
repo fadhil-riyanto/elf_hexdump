@@ -1,8 +1,6 @@
 # ELF (Executable and Linkable Format)
+this is dumb tool used to inspect Linux ELF binary structure and also act as hexdump.
 
-<img src="https://raw.githubusercontent.com/corkami/pics/28cb0226093ed57b348723bc473cea0162dad366/binary/elf101/elf101-64.svg">
-
-[image source](https://github.com/corkami/pics/blob/28cb0226093ed57b348723bc473cea0162dad366/binary/elf101/elf101-64.svg)
 
 ## Introduction
 
@@ -10,13 +8,12 @@ Executable and Linkable Format (ELF), is the default binary format on Linux-base
 
 ![ELF](https://i.imgur.com/Ai9OqOB.png)
 
-## Compilation
 
 ![Compilation](https://i.imgur.com/LNddTmk.png)
 
 [image source](https://gist.github.com/x0nu11byt3/bcb35c3de461e5fb66173071a2379779)
 
-this is dumb tool used to inspect Linux ELF binary structure and also act as hexdump.
+
 
 # compiling & use
 the compile process is very easy, just type `make`. by default its compile debug version (with symbol inside).
@@ -26,13 +23,23 @@ the compile process is very easy, just type `make`. by default its compile debug
 `./elf64 --file elf64 --hexdump`
 
 #### show user friendly header
-`./elf64 --file elf64 --header 1`
+`./elf64 --file elf64 --header`
 
 #### dump ELF header as linux kernel struct format
-`./elf64 --file elf64 --header 1 --header-struct`
+`./elf64 --file elf64 --header --header-struct`
 
 #### dump ELF program header
 `./elf64 --file elf64 --ph`
+
+#### dump ELF section header
+`./elf64 --file elf64 --sh`
+
+## screenshots
+![image](./img/1.png)
+
+![image](./img/2.png)
+
+![image](./img/3.png)
 
 # useful resources
 - [https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234)
