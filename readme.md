@@ -44,7 +44,7 @@ the compile process is very easy, just type `make`. by default its compile debug
 # useful resources
 - [https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/elf.h#n234)
 - [https://0xax.gitbooks.io/linux-insides/content/Theory/linux-theory-2.html](https://0xax.gitbooks.io/linux-insides/content/Theory/linux-theory-2.html)
-
+- [https://blog.fadev.org/sysprog/finding-shstrtab.html](https://blog.fadev.org/sysprog/finding-shstrtab.html)
 
 # todo
 - print custom section such `.shrtab`, `.text`
