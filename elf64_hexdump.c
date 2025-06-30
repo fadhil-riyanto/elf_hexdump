@@ -3,6 +3,7 @@
  * Copyright (C) Fadhil Riyanto <me@fadev.org>
  */
 
+#include <errno.h>
 #define USE_PRETTY_PRINT_PAD_COUNT
 
 #include "elf64_hexdump.h"
@@ -1423,6 +1424,7 @@ __hot static int __get_file_n(int fd) {
         memset(&statbuf, 0, sizeof(struct stat));
 
         int ret = fstat(fd, &statbuf);
+        printf("fstat %ld\n", errno);
         if (ret == 0) {
                 // asm volatile("nop");
 
@@ -1443,9 +1445,10 @@ __hot static int _start_hexdump(int fd) {
         char *buf = (char *)malloc(sizeof(char) * FILE_BUFSIZE);
 
         VT_TITLE(buf, filesize);
+        printf("LAH %d\n", fd);
         for (int i = 0; i < (filesize / FILE_BUFSIZE); i++) {
-                lseek(fd, SEEK_SET,
-                      (file_off_control.offset * file_off_control.n));
+                lseek(fd,
+                      (file_off_control.offset * file_off_control.n), SEEK_SET);
                 read(fd, buf, FILE_BUFSIZE);
                 HEXDUMP(buf, FILE_BUFSIZE);
 
@@ -1584,7 +1587,7 @@ int main(int argc, char **argv) {
         }
 
         if (config.hexdump) {
-                _start_hexdump(ret);
+                _start_hexdump(fd);
         }
 
         close(fd);
