@@ -1424,7 +1424,6 @@ __hot static int __get_file_n(int fd) {
         memset(&statbuf, 0, sizeof(struct stat));
 
         int ret = fstat(fd, &statbuf);
-        printf("fstat %ld\n", errno);
         if (ret == 0) {
                 // asm volatile("nop");
 
@@ -1445,7 +1444,6 @@ __hot static int _start_hexdump(int fd) {
         char *buf = (char *)malloc(sizeof(char) * FILE_BUFSIZE);
 
         VT_TITLE(buf, filesize);
-        printf("LAH %d\n", fd);
         for (int i = 0; i < (filesize / FILE_BUFSIZE); i++) {
                 lseek(fd,
                       (file_off_control.offset * file_off_control.n), SEEK_SET);
