@@ -5,6 +5,7 @@
 
 #define USE_PRETTY_PRINT_PAD_COUNT
 
+#include "elf64_hexdump.h"
 #include "getopt_custom.h"
 #include "hexdump.h"
 #include "print_pretty.h"
@@ -58,20 +59,6 @@ static struct option long_options[] = {
         { "sh", 0, 0, GETOPT_CUSTOM_SECTION_HEADER },
         { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP },
         NULL
-};
-
-struct config {
-        char *filename;
-        u_int8_t show_header;
-        u_int8_t show_header_struct;
-        u_int8_t hexdump;
-        u_int8_t show_program_header; /* table */
-        u_int8_t show_program_header_struct;
-        u_int8_t show_section_header;
-
-        /*
-         * add more in future
-         */
 };
 
 __cold static void __debug_config(struct config *config) {
@@ -709,6 +696,125 @@ void __print_elf_version(unsigned int elf_version) {
         }
 }
 
+void __print_elf_section_header_type(Elf64_Word sh_type) {
+        switch (sh_type) {
+        case 0:
+                PRINT_PRETTY("NULL", 4, 18);
+                break;
+        case SHT_PROGBITS:
+                PRINT_PRETTY("PROGBITS", 8, 18);
+                break;
+        case SHT_SYMTAB:
+                PRINT_PRETTY("SYMTAB", 6, 18);
+                break;
+        case SHT_STRTAB:
+                PRINT_PRETTY("STRTAB", 6, 18);
+                break;
+        case SHT_RELA:
+                PRINT_PRETTY("RELA", 4, 18);
+                break;
+        case SHT_HASH:
+                PRINT_PRETTY("HASH", 4, 18);
+                break;
+        case SHT_DYNAMIC:
+                PRINT_PRETTY("DYNAMIC", 7, 18);
+                break;
+        case SHT_NOTE:
+                PRINT_PRETTY("NOTE", 4, 18);
+                break;
+        case SHT_NOBITS:
+                PRINT_PRETTY("NOBITS", 6, 18);
+                break;
+        case SHT_REL:
+                PRINT_PRETTY("REL", 3, 18);
+                break;
+        case SHT_SHLIB:
+                PRINT_PRETTY("SHLIB", 5, 18);
+                break;
+        case SHT_DYNSYM:
+                PRINT_PRETTY("DYNSYM", 6, 18);
+                break;
+        case SHT_INIT_ARRAY:
+                PRINT_PRETTY("INIT_ARRAY", 10, 18);
+                break;
+        case SHT_FINI_ARRAY:
+                PRINT_PRETTY("FINI_ARRAY", 10, 18);
+                break;
+        case SHT_PREINIT_ARRAY:
+                PRINT_PRETTY("PREINIT_ARRAY", 13, 18);
+                break;
+        case SHT_GROUP:
+                PRINT_PRETTY("GROUP", 5, 18);
+                break;
+        case SHT_SYMTAB_SHNDX:
+                PRINT_PRETTY("SYMTAB_SHNDX", 12, 18);
+                break;
+        case SHT_RELR:
+                PRINT_PRETTY("RELR", 4, 18);
+                break;
+        case SHT_NUM:
+                PRINT_PRETTY("NUM", 3, 18);
+                break;
+        case SHT_LOOS:
+                PRINT_PRETTY("LOOS", 4, 18);
+                break;
+        case SHT_GNU_ATTRIBUTES:
+                PRINT_PRETTY("GNU_ATTRIBUTES", 14, 18);
+                break;
+        case SHT_GNU_HASH:
+                PRINT_PRETTY("GNU_HASH", 8, 18);
+                break;
+        case SHT_GNU_LIBLIST:
+                PRINT_PRETTY("GNU_LIBLIST", 11, 18);
+                break;
+        case SHT_CHECKSUM:
+                PRINT_PRETTY("CHECKSUM", 8, 18);
+                break;
+        case SHT_LOSUNW:
+                PRINT_PRETTY("LOSUNW", 6, 18);
+                break;
+        // case SHT_SUNW_move:
+        //         PRINT_PRETTY("SUNW_move", 9, 18);
+        //         break;
+        case SHT_SUNW_COMDAT:
+                PRINT_PRETTY("SUNW_COMDAT", 11, 18);
+                break;
+        case SHT_SUNW_syminfo:
+                PRINT_PRETTY("SUNW_syminfo", 13, 18);
+                break;
+        case SHT_GNU_verdef:
+                PRINT_PRETTY("GNU_verdef", 10, 18);
+                break;
+        case SHT_GNU_verneed:
+                PRINT_PRETTY("GNU_verneed", 11, 18);
+                break;
+        case SHT_GNU_versym:
+                PRINT_PRETTY("GNU_versym", 10, 18);
+                break;
+        // case SHT_HISUNW:
+        //         PRINT_PRETTY("HISUNW", 6, 18);
+        //         break;
+        // case SHT_HIOS:
+        //         PRINT_PRETTY("HIOS", 4, 18);
+        //         break;
+        case SHT_LOPROC:
+                PRINT_PRETTY("LOPROC", 6, 18);
+                break;
+        case SHT_HIPROC:
+                PRINT_PRETTY("HIPROC", 6, 18);
+                break;
+        case SHT_LOUSER:
+                PRINT_PRETTY("LOUSER", 6, 18);
+                break;
+        case SHT_HIUSER:
+                PRINT_PRETTY("HIUSER", 6, 18);
+                break;
+        default:
+                PRINT_PRETTY("Unknown SHT type", 17, 18);
+                break;
+        }
+}
+
 __cold static void __print_elf64_hdr(Elf64_Ehdr *ehdr, struct config *config) {
         if (config->show_header_struct == 1) {
                 printf("{\n");
@@ -861,17 +967,17 @@ __cold static void __print_ph_table_header() {
         //        "align\n\n");
 }
 
-
 __cold static void __print_sh_table_header() {
-        PRINT_PRETTY_PAD_COUNT("name", 4, 16);
-        PRINT_PRETTY_PAD_COUNT("types", 5, 9);
-        PRINT_PRETTY_PAD_COUNT("flags", 1, 3);
+        PRINT_PRETTY_PAD_COUNT("n", 1, 4);
+        PRINT_PRETTY_PAD_COUNT("name", 4, 17);
+        PRINT_PRETTY_PAD_COUNT("types", 5, 18);
+        PRINT_PRETTY_PAD_COUNT("flags", 5, 6);
         PRINT_PRETTY_PAD_COUNT("virtual addr", 12, 19);
-        PRINT_PRETTY_PAD_COUNT("offset", 8, 19);
+        PRINT_PRETTY_PAD_COUNT("offset", 6, 19);
         PRINT_PRETTY_PAD_COUNT("sh size", 7, 19);
-        PRINT_PRETTY_PAD_COUNT("sh link", 7, 19);
-        PRINT_PRETTY_PAD_COUNT("info", 1, 4);
-        PRINT_PRETTY_PAD_COUNT("align", 2, 3);
+        PRINT_PRETTY_PAD_COUNT("sh link", 7, 10);
+        PRINT_PRETTY_PAD_COUNT("info", 4, 5);
+        PRINT_PRETTY_PAD_COUNT("align", 5, 6);
         PRINT_PRETTY_PAD_COUNT("entry size", 10, 19);
 
         printf("\n");
@@ -1042,11 +1148,59 @@ __cold static void __print_elf32_ph_table(Elf32_Phdr *data,
         }
 }
 
-__cold static void __print_elf64_sh_table(Elf64_Shdr *data, Elf64_Half e_shnum) {
+/* e_shstrndx is global,
+ * we need to cast to int64 from int32 */
+__cold static void __print_elf64_sh_table(int fd, Elf64_Ehdr *ehdr_data,
+                                          Elf64_Shdr *data) {
         __print_sh_table_header();
+
+        char* shstr_string = (char*)malloc(4096);
+
+        for (int i = 0; i < ehdr_data->e_shnum; i++) {
+                PRINT_PRETTYF_NUM("%d", i, 4);
+
+                /*
+                 * need resolver of sh_name
+                 * but, temporarily I use normal number print instead
+                 */
+                _resolve_e_shstrndx(fd, ehdr_data->e_shstrndx,
+                                    ehdr_data->e_shentsize, data[i].sh_name,
+                                    ehdr_data->e_shoff, shstr_string);
+                // printf("%ld", strlen(shstr_string));
+
+                PRINT_PRETTYF_NO_OVERFLOW("%s", shstr_string, (unsigned long)17);
+                __print_elf_section_header_type(data[i].sh_type);
+                PRINT_PRETTYF_NUM("%ld", data[i].sh_flags, 6);
+
+                PRINT_PRETTYF("0x%016lx", data[i].sh_addr, 18, 19);
+
+                PRINT_PRETTYF_NUM("%ld", data[i].sh_offset, 19);
+
+                PRINT_PRETTYF("0x%016lx", data[i].sh_size, 18, 19);
+
+                PRINT_PRETTYF_NUM("%d", data[i].sh_link, 10);
+                
+                PRINT_PRETTYF_NUM("%d", data[i].sh_info, 5);
+
+                PRINT_PRETTYF_NUM("%ld", data[i].sh_addralign, 6);
+                
+                PRINT_PRETTYF("0x%016lx", data[i].sh_entsize, 18, 19);
+
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_addr, 12, 19);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_offset, 8, 19);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_size, 7, 19);
+                // PRINT_PRETTYF("0x%016x", data[i].sh_link, 7, 19);
+                // PRINT_PRETTYF("0x%016x", data[i].sh_info, 1, 4);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_addralign, 2, 3);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_entsize, 10, 19);
+
+                printf("\n");
+        }
+
+        free(shstr_string);
 }
 
-    static int __open_file(const char *filename) {
+static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
 
         if (fd < 0) {
@@ -1309,6 +1463,60 @@ __hot static int _start_hexdump(int fd) {
         free(buf);
 }
 
+__hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
+                                       Elf64_Half e_shentsize,
+                                       Elf64_Word sh_name, Elf64_Off e_shoff, char* dst) {
+        int shstrtab_location = e_shoff + (e_shstrndx * e_shentsize);
+        lseek(fd, shstrtab_location, SEEK_SET);
+
+        Elf64_Shdr shstrtab_data = { 0 };
+        char buf[64];
+        char chr = 0;
+        int counter = 0;
+
+        int ret = read(fd, &buf, 64);
+        if (ret < 0) {
+                perror(
+                    "error: read() Elf64_Shdr on function _resolve_e_shstrndx");
+                goto return_fd_err;
+        }
+
+        memcpy(&shstrtab_data, buf, e_shentsize);
+
+        /* new offset of actual string location */
+        shstrtab_location = shstrtab_data.sh_offset;
+        lseek(fd, shstrtab_location, SEEK_SET);
+
+        /* alloc one linux page memory */
+        char *preallocated_buffer = (char *)malloc(shstrtab_data.sh_size);
+
+        memset(preallocated_buffer, 0, shstrtab_data.sh_size);
+        ret = read(fd, preallocated_buffer, shstrtab_data.sh_size);
+
+        if (ret < 0) {
+                perror("error: read() .shstrtab on function _resolve_e_shstrndx");
+                goto return_fd_err;
+        }
+
+        do {
+                chr = preallocated_buffer[sh_name + counter];
+                counter++;
+        } while (chr != 0);
+        
+        int far = (sh_name + counter) - sh_name;
+        memset(dst, 0, 4096);
+        memcpy(dst, &preallocated_buffer[sh_name], far);
+
+        free(preallocated_buffer);
+
+return_fd_err:
+        return 0;
+
+err_clear_fh:
+        // fflush(fh);
+        return 0;
+}
+
 int main(int argc, char **argv) {
         struct config config;
         memset(&config, 0, sizeof(config));
@@ -1321,7 +1529,6 @@ int main(int argc, char **argv) {
                 return -1;
                 // VT_HEXDUMP(ehdr, sizeof(Elf64_Ehdr));
                 // asm volatile("nop");
-                // printf(const char *restrict format, ...)
         }
 
         int elf_arch_type = read_elf_magic(fd);
@@ -1344,7 +1551,7 @@ int main(int argc, char **argv) {
                             fd, ehdr->e_shoff, ehdr->e_shnum);
 
                         // VT_HEXDUMP(shdr_table, sizeof(Elf64_Shdr) * 1);
-                        __print_elf64_sh_table(shdr_table, ehdr->e_shnum);
+                        __print_elf64_sh_table(fd, ehdr, shdr_table);
 
                         free(shdr_table);
                 }
