@@ -11,5 +11,6 @@
 #define GETOPT_CUSTOM_PROGRAM_HEADER            0x05 /* dump program header (pretty table) */
 #define GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT     0x06 /* [unused right now] dump program header (kernel struct)*/
 #define GETOPT_CUSTOM_SECTION_HEADER            0x07 /* print section header lists */
+#define GETOPT_CUSTOM_LOOKUP_SECTION            0x08 /* looking up on special section */
 
 #endif /* GETOPT_CUSTOM_H */

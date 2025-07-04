@@ -23,14 +23,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef __clang__
-#ifndef __hot
-#define __hot __attribute__((hot))
-#endif
-#ifndef __cold
-#define __cold __attribute__((cold))
-#endif
-#endif /* __clang__ */
 
 #define SIZE(x, y) sizeof(x) / sizeof(y)
 // #define EI_NIDENT 16
@@ -59,6 +51,7 @@ static struct option long_options[] = {
         { "header-ph", 0, 0, GETOPT_CUSTOM_PROGRAM_HEADER_STRUCT },
         { "sh", 0, 0, GETOPT_CUSTOM_SECTION_HEADER },
         { "hexdump", 0, 0, GETOPT_CUSTOM_HEXDUMP },
+        { "section", 1, 0, GETOPT_CUSTOM_LOOKUP_SECTION },
         NULL
 };
 
@@ -66,12 +59,13 @@ __cold static void __debug_config(struct config *config) {
         printf("config->filename: %s\n"
                "config->show_header: %d\n"
                "config->show_header_struct: %d\n"
-               "config->hexdump: %d"
-               "config->show_program_header: %d",
+               "config->hexdump: %d\n"
+               "config->show_program_header: %d\n"
+               "config->lookup_section_name: %s\n",
 
                config->filename, config->show_header,
                config->show_header_struct, config->hexdump,
-               config->show_program_header);
+               config->show_program_header, config->lookup_section_name);
 }
 
 void __print_process_elf_type(unsigned short e_type) {
@@ -1155,7 +1149,7 @@ __cold static void __print_elf64_sh_table(int fd, Elf64_Ehdr *ehdr_data,
                                           Elf64_Shdr *data) {
         __print_sh_table_header();
 
-        char* shstr_string = (char*)malloc(4096);
+        char *shstr_string = (char *)malloc(4096);
 
         for (int i = 0; i < ehdr_data->e_shnum; i++) {
                 PRINT_PRETTYF_NUM("%d", i, 4);
@@ -1169,7 +1163,8 @@ __cold static void __print_elf64_sh_table(int fd, Elf64_Ehdr *ehdr_data,
                                     ehdr_data->e_shoff, shstr_string);
                 // printf("%ld", strlen(shstr_string));
 
-                PRINT_PRETTYF_NO_OVERFLOW("%s", shstr_string, (unsigned long)17);
+                PRINT_PRETTYF_NO_OVERFLOW("%s", shstr_string,
+                                          (unsigned long)17);
                 __print_elf_section_header_type(data[i].sh_type);
                 PRINT_PRETTYF_NUM("%ld", data[i].sh_flags, 6);
 
@@ -1180,11 +1175,11 @@ __cold static void __print_elf64_sh_table(int fd, Elf64_Ehdr *ehdr_data,
                 PRINT_PRETTYF("0x%016lx", data[i].sh_size, 18, 19);
 
                 PRINT_PRETTYF_NUM("%d", data[i].sh_link, 10);
-                
+
                 PRINT_PRETTYF_NUM("%d", data[i].sh_info, 5);
 
                 PRINT_PRETTYF_NUM("%ld", data[i].sh_addralign, 6);
-                
+
                 PRINT_PRETTYF("0x%016lx", data[i].sh_entsize, 18, 19);
 
                 // PRINT_PRETTYF("0x%016lx", data[i].sh_addr, 12, 19);
@@ -1413,10 +1408,22 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
                 case GETOPT_CUSTOM_HEXDUMP:
                         config->hexdump = 1;
                         break;
+                case GETOPT_CUSTOM_LOOKUP_SECTION:
+                        strcpy(config->lookup_section_name, optarg);
+                        break;
                 }
         }
 
         return retval;
+}
+
+static void alloc_config_struct(struct config *config) {
+        config->lookup_section_name = (char*)malloc(1024);
+        config->lookup_section_name = NULL;
+}
+
+static void free_config_struct(struct config *config) {
+        free(config->lookup_section_name);
 }
 
 __hot static int __get_file_n(int fd) {
@@ -1445,8 +1452,8 @@ __hot static int _start_hexdump(int fd) {
 
         VT_TITLE(buf, filesize);
         for (int i = 0; i < (filesize / FILE_BUFSIZE); i++) {
-                lseek(fd,
-                      (file_off_control.offset * file_off_control.n), SEEK_SET);
+                lseek(fd, (file_off_control.offset * file_off_control.n),
+                      SEEK_SET);
                 read(fd, buf, FILE_BUFSIZE);
                 HEXDUMP(buf, FILE_BUFSIZE);
 
@@ -1466,7 +1473,8 @@ __hot static int _start_hexdump(int fd) {
 
 __hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
                                        Elf64_Half e_shentsize,
-                                       Elf64_Word sh_name, Elf64_Off e_shoff, char* dst) {
+                                       Elf64_Word sh_name, Elf64_Off e_shoff,
+                                       char *dst) {
         int shstrtab_location = e_shoff + (e_shstrndx * e_shentsize);
         lseek(fd, shstrtab_location, SEEK_SET);
 
@@ -1495,7 +1503,8 @@ __hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
         ret = read(fd, preallocated_buffer, shstrtab_data.sh_size);
 
         if (ret < 0) {
-                perror("error: read() .shstrtab on function _resolve_e_shstrndx");
+                perror(
+                    "error: read() .shstrtab on function _resolve_e_shstrndx");
                 goto return_fd_err;
         }
 
@@ -1503,7 +1512,7 @@ __hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
                 chr = preallocated_buffer[sh_name + counter];
                 counter++;
         } while (chr != 0);
-        
+
         int far = (sh_name + counter) - sh_name;
         memset(dst, 0, 4096);
         memcpy(dst, &preallocated_buffer[sh_name], far);
@@ -1522,8 +1531,10 @@ int main(int argc, char **argv) {
         struct config config;
         memset(&config, 0, sizeof(config));
 
+        alloc_config_struct(&config);
+
         int ret = parse_opt(argc, argv, &config);
-        // __debug_config(&config);
+        __debug_config(&config);
 
         int fd = __open_file(config.filename);
         if (fd < 0) {
@@ -1589,5 +1600,6 @@ int main(int argc, char **argv) {
         }
 
         close(fd);
+        free_config_struct(&config);
         // __debug_config(&config);
 }
