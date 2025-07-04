@@ -17,7 +17,15 @@
 #ifndef __cold
 #define __cold __attribute__((cold))
 #endif
-#endif /* __clang__ */
+#else /* __clang__ */
+#ifndef __cold
+#define __cold __attribute__((__cold__))
+#endif
+
+#ifndef __hot
+#define __hot __attribute__((__hot__))
+#endif
+#endif
 
 struct config {
         char *filename;
@@ -27,6 +35,7 @@ struct config {
         uint8_t show_program_header; /* table */
         uint8_t show_program_header_struct;
         uint8_t show_section_header;
+        char *lookup_section_name;
 
         /*
          * add more in future
@@ -65,6 +74,7 @@ __hot static int __get_file_n(int fd);
 __hot static int _start_hexdump(int fd);
 __hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
                                        Elf64_Half e_shentsize,
-                                       Elf64_Word sh_name, Elf64_Off e_shoff, char *dst);
+                                       Elf64_Word sh_name, Elf64_Off e_shoff,
+                                       char *dst);
 
 #endif /* ELF64_HEXDUMP_H */
