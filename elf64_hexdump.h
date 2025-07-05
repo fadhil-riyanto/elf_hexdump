@@ -76,5 +76,8 @@ __hot static char *_resolve_e_shstrndx(int fd, Elf64_Half e_shstrndx,
                                        Elf64_Half e_shentsize,
                                        Elf64_Word sh_name, Elf64_Off e_shoff,
                                        char *dst);
+static char *_resolve_e_shstrndx32(int fd, Elf32_Half e_shstrndx,
+                                   Elf32_Half e_shentsize, Elf32_Word sh_name,
+                                   Elf32_Off e_shoff, char *dst);
 
 #endif /* ELF64_HEXDUMP_H */

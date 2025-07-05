@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 #define SIZE(x, y) sizeof(x) / sizeof(y)
 // #define EI_NIDENT 16
 #define FILE_BUFSIZE 4096 /* BYTES */
@@ -1196,6 +1195,58 @@ __cold static void __print_elf64_sh_table(int fd, Elf64_Ehdr *ehdr_data,
         free(shstr_string);
 }
 
+__cold static void __print_elf32_sh_table(int fd, Elf32_Ehdr *ehdr_data,
+                                          Elf32_Shdr *data) {
+        //
+        __print_sh_table_header();
+
+        char *shstr_string = (char *)malloc(4096);
+
+        for (int i = 0; i < ehdr_data->e_shnum; i++) {
+                PRINT_PRETTYF_NUM("%d", i, 4);
+
+                /*
+                 * need resolver of sh_name
+                 * but, temporarily I use normal number print instead
+                 */
+                _resolve_e_shstrndx32(fd, ehdr_data->e_shstrndx,
+                                    ehdr_data->e_shentsize, data[i].sh_name,
+                                    ehdr_data->e_shoff, shstr_string);
+                // printf("%ld", strlen(shstr_string));
+
+                PRINT_PRETTYF_NO_OVERFLOW("%s", shstr_string,
+                                          (unsigned long)17);
+                __print_elf_section_header_type(data[i].sh_type);
+                PRINT_PRETTYF_NUM("%d", data[i].sh_flags, 6);
+
+                PRINT_PRETTYF("0x%016x", data[i].sh_addr, 18, 19);
+
+                PRINT_PRETTYF_NUM("%d", data[i].sh_offset, 19);
+
+                PRINT_PRETTYF("0x%016x", data[i].sh_size, 18, 19);
+
+                PRINT_PRETTYF_NUM("%d", data[i].sh_link, 10);
+
+                PRINT_PRETTYF_NUM("%d", data[i].sh_info, 5);
+
+                PRINT_PRETTYF_NUM("%d", data[i].sh_addralign, 6);
+
+                PRINT_PRETTYF("0x%016x", data[i].sh_entsize, 18, 19);
+
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_addr, 12, 19);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_offset, 8, 19);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_size, 7, 19);
+                // PRINT_PRETTYF("0x%016x", data[i].sh_link, 7, 19);
+                // PRINT_PRETTYF("0x%016x", data[i].sh_info, 1, 4);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_addralign, 2, 3);
+                // PRINT_PRETTYF("0x%016lx", data[i].sh_entsize, 10, 19);
+
+                printf("\n");
+        }
+
+        free(shstr_string);
+}
+
 static int __open_file(const char *filename) {
         int fd = open(filename, O_RDONLY);
 
@@ -1342,7 +1393,7 @@ interpret_elf64_section_header(int fd, Elf64_Off e_shoff, Elf64_Half e_shnum) {
 
                 int ret = read(fd, buf_each, sizeof(Elf64_Shdr));
                 if (ret < 0) {
-                        perror("read() on interpret_elf32_program_header");
+                        perror("read() on interpret_elf64_section_header");
                 } else {
                         memcpy(&section_header_section[i], buf_each,
                                sizeof(Elf64_Shdr));
@@ -1361,7 +1412,27 @@ interpret_elf64_section_header(int fd, Elf64_Off e_shoff, Elf64_Half e_shnum) {
  * reserved
  */
 __cold static Elf32_Shdr *
-interpret_elf32_section_header(int fd, Elf32_Off e_shoff, Elf32_Half e_shnum) {}
+interpret_elf32_section_header(int fd, Elf32_Off e_shoff, Elf32_Half e_shnum) {
+        u_int8_t *buf_each = (u_int8_t *)malloc(sizeof(Elf32_Shdr));
+        Elf32_Shdr *section_header_section =
+            (Elf32_Shdr *)malloc(sizeof(Elf32_Shdr) * e_shnum);
+
+        for (int i = 0; i < e_shnum; i++) {
+                lseek(fd, e_shoff + (sizeof(Elf32_Shdr) * i), SEEK_SET);
+
+                int ret = read(fd, buf_each, sizeof(Elf32_Shdr));
+                if (ret < 0) {
+                        perror("read() on interpret_elf32_section_header");
+                } else {
+                        memcpy(&section_header_section[i], buf_each,
+                               sizeof(Elf32_Shdr));
+                        memset(buf_each, 0, sizeof(Elf32_Shdr));
+                }
+        }
+        free(buf_each);
+
+        return section_header_section;
+}
 
 static int parse_opt(int argc, char *argv[], struct config *config) {
         int retval = 0;
@@ -1418,8 +1489,8 @@ static int parse_opt(int argc, char *argv[], struct config *config) {
 }
 
 static void alloc_config_struct(struct config *config) {
-        config->lookup_section_name = (char*)malloc(1024);
-        config->lookup_section_name = NULL;
+        config->lookup_section_name = (char *)malloc(1024);
+        memset(config->lookup_section_name, 0, 1024);
 }
 
 static void free_config_struct(struct config *config) {
@@ -1527,6 +1598,61 @@ err_clear_fh:
         return 0;
 }
 
+static char *_resolve_e_shstrndx32(int fd, Elf32_Half e_shstrndx,
+                                   Elf32_Half e_shentsize, Elf32_Word sh_name,
+                                   Elf32_Off e_shoff, char *dst) {
+        int shstrtab_location = e_shoff + (e_shstrndx * e_shentsize);
+        lseek(fd, shstrtab_location, SEEK_SET);
+
+        Elf32_Shdr shstrtab_data = { 0 };
+        char buf[sizeof(Elf32_Shdr)];
+        char chr = 0;
+        int counter = 0;
+
+        int ret = read(fd, &buf, sizeof(Elf32_Shdr));
+        if (ret < 0) {
+                perror(
+                    "error: read() Elf32_Shdr on function _resolve_e_shstrndx");
+                goto return_fd_err;
+        }
+
+        memcpy(&shstrtab_data, buf, e_shentsize);
+
+        /* new offset of actual string location */
+        shstrtab_location = shstrtab_data.sh_offset;
+        lseek(fd, shstrtab_location, SEEK_SET);
+
+        /* alloc one linux page memory */
+        char *preallocated_buffer = (char *)malloc(shstrtab_data.sh_size);
+
+        memset(preallocated_buffer, 0, shstrtab_data.sh_size);
+        ret = read(fd, preallocated_buffer, shstrtab_data.sh_size);
+
+        if (ret < 0) {
+                perror(
+                    "error: read() .shstrtab on function _resolve_e_shstrndx");
+                goto return_fd_err;
+        }
+
+        do {
+                chr = preallocated_buffer[sh_name + counter];
+                counter++;
+        } while (chr != 0);
+
+        int far = (sh_name + counter) - sh_name;
+        memset(dst, 0, 4096);
+        memcpy(dst, &preallocated_buffer[sh_name], far);
+
+        free(preallocated_buffer);
+
+return_fd_err:
+        return 0;
+
+err_clear_fh:
+        // fflush(fh);
+        return 0;
+}
+
 int main(int argc, char **argv) {
         struct config config;
         memset(&config, 0, sizeof(config));
@@ -1583,6 +1709,16 @@ int main(int argc, char **argv) {
                         __print_elf32_ph_table(phdr_table, ehdr->e_phnum);
                         free(phdr_table);
                 }
+
+                if (config.show_section_header) {
+                        Elf32_Shdr *shdr_table = interpret_elf32_section_header(
+                            fd, ehdr->e_shoff, ehdr->e_shnum);
+
+                        __print_elf32_sh_table(fd, ehdr, shdr_table);
+
+                        free(shdr_table);
+                }
+
                 free(ehdr);
         }
 
